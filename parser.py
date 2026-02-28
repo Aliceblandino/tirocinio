@@ -20,11 +20,22 @@ def parse_appello(filepath):
     if ext in [".xls", ".xlsx"]:
         try:
             # df1 = tabella studenti, dalla riga 21
-            df1 = pd.read_excel(filepath, skiprows=20, engine='openpyxl' if ext=='.xlsx' else 'xlrd')
+            df1 = pd.read_excel(
+                filepath,
+                skiprows=20,
+                engine='openpyxl' if ext == '.xlsx' else 'xlrd'
+            )
 
             # df0 = prime 20 righe (header)
-            df0 = pd.read_excel(filepath, nrows=20, header=None, engine='openpyxl' if ext=='.xlsx' else 'xlrd')
-            header_lines = df0.astype(str).fillna("").agg(" ".join, axis=1).tolist()
+            df0 = pd.read_excel(
+                filepath,
+                nrows=20,
+                header=None,
+                engine='openpyxl' if ext == '.xlsx' else 'xlrd'
+            )
+
+            # Prendiamo solo le prime due colonne per le info principali
+            header_lines = df0.iloc[:, :2].astype(str).fillna("").agg("\t".join, axis=1).tolist()
 
         except Exception as e:
             raise ValueError(f"Errore nella lettura del file Excel: {e}")
@@ -46,6 +57,7 @@ def parse_appello(filepath):
                 engine="python",
                 on_bad_lines="skip"
             )
+
             df0 = pd.DataFrame(header_lines, columns=["info"])
 
         except Exception as e:
@@ -71,56 +83,43 @@ def parse_appello(filepath):
 
     meta = {}
 
+    # -------------------------
+    # PARSE HEADER PULITO
+    # -------------------------
+    # Materia / Attività (F6 → riga indice 6, prima colonna)
+    header["attivita"] = df0.iloc[6, 0] if pd.notna(df0.iloc[6, 0]) else None
+
+    # Codice attività tra parentesi quadre
+    m = re.search(r"\[(.*?)\]", header["attivita"]) if header["attivita"] else None
+    header["ad_cod"] = m.group(1) if m else None
+
+    # Tipo di prova (D12 → riga indice 11, **prima colonna**)
+    header["tipo_prova"] = df0.iloc[11, 3] if pd.notna(df0.iloc[11, 3]) else None
+
+    # Data appello (D14 → riga indice 13, **prima colonna**)
+    data_str = df0.iloc[13, 3] if pd.notna(df0.iloc[13, 3]) else None
+    if data_str:
+        m = re.search(r"\d{2}/\d{2}/\d{4}", str(data_str))
+        header["data_appello"] = m.group(0) if m else data_str
+
+    # Totale studenti iscritti (D15 → riga indice 14, **prima colonna**)
+    tot_str = df0.iloc[14, 3] if pd.notna(df0.iloc[14, 3]) else None
+    if tot_str:
+        nums = re.findall(r"\d+", str(tot_str))
+        header["totale_iscritti"] = int(nums[0]) if nums else None
+
+    # -------------------------
+    # PARSE META (tipo esito e tipo svolgimento)
+    # -------------------------
     for line in header_lines:
-        # Materia / Attività
-        if "FONDAMENTI" in line and "[" in line:
-            header["attivita"] = line.strip()
-            m = re.search(r"\[(.*?)\]", line)
-            if m:
-                header["ad_cod"] = m.group(1)
-
-        # Corsi di studio
-        elif "INTERNET OF THINGS" in line:
-            header["corsi_studio"].append(line.strip())
-
-        # Sessione
-        elif "Sessione" in line:
-            header["sessione"] = line.split("\t")[-1].strip()
-
-        # Descrizione appello
-        elif "Descrizione Appello" in line:
-            header["descrizione"] = line.split("\t")[-1].strip()
-
-        # Tipo di prova
-        elif "Tipo di Prova" in line:
-            header["tipo_prova"] = line.split("\t")[-1].strip()
-
-        # Prenotazione
-        elif "Prenotazione" in line:
-            header["prenotazione"] = line.split("\t")[-1].strip()
-
-        # Date Appello → prendiamo solo la prima data
-        elif "Date Appello" in line:
-            date_part = line.split("\t")[-1].strip()
-            # Estrai prima data nel formato gg/mm/yyyy
-            m = re.search(r"\d{2}/\d{2}/\d{4}", date_part)
-            header["data_appello"] = m.group(0) if m else date_part
-
-        # Totale studenti
-        elif "Totale Studenti" in line:
-            nums = re.findall(r"\d+", line)
-            if nums:
-                header["totale_iscritti"] = int(nums[0])
-
-        # Meta: Tipo Esito
-        elif "Tipo Esito" in line:
+        if "Tipo Esito" in line:
             meta["tipo_esito"] = line.split("\t")[-1].strip()
-
-        # Meta: Tipo Svolgimento
         elif "Tipo Svolgimento" in line:
             meta["tipo_svolgimento"] = line.split("\t")[-1].strip()
 
+    # -------------------------
     # ID appello basato sulla data
+    # -------------------------
     data_id = header["data_appello"].replace("/", "") if header["data_appello"] else "ND"
     appello_id = f"{header['ad_cod']}_{data_id}"
 
