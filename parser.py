@@ -1,56 +1,52 @@
 # parser.py
-from io import StringIO
 import pandas as pd
 import re
-import csv
+import os
 
-def parse_appello(file):
-    """
-    Parsing di un appello Esse3:
-    - df0: righe di header (fino alla tabella)
-    - df1: tabella studenti (da riga contenente 'Matricola' in poi)
-    - Estrae informazioni principali per header e meta
-    """
-    content = file.read().decode("utf-8", errors="ignore")
-    lines = content.splitlines()
+def parse_appello(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
 
-    # Separazione righe header e tabella
-    header_lines = []
-    table_lines = []
-    table_started = False
+    # -------------------------
+    # EXCEL (XLS / XLSX)
+    # -------------------------
+    if ext in [".xls", ".xlsx"]:
+        # df1 = tabella studenti (riga 21 → indice 20)
+        df1 = pd.read_excel(
+            filepath,
+            skiprows=20
+        )
 
-    for line in lines:
-        if not table_started:
-            if "Matricola" in line and "Cognome" in line:
-                table_started = True
-                table_lines.append(line)
-            else:
-                if line.strip():
-                    header_lines.append(line)
-        else:
-            if line.strip():
-                table_lines.append(line)
+        # df0 = header (prime 20 righe)
+        df0 = pd.read_excel(
+            filepath,
+            nrows=20,
+            header=None
+        )
 
-    if not table_lines:
-        raise ValueError("Il file non contiene righe della tabella")
+        header_lines = df0.astype(str).fillna("").agg(" ".join, axis=1).tolist()
 
-    # df1: tabella studenti
-    table_str = "\n".join(table_lines)
-    try:
+    # -------------------------
+    # CSV / TSV
+    # -------------------------
+    else:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.read().splitlines()
+
+        header_lines = lines[:20]
+        table_lines = lines[20:]
+
         df1 = pd.read_csv(
-            StringIO(table_str),
+            "\n".join(table_lines),
             sep="\t",
             engine="python",
-            quoting=csv.QUOTE_NONE,
-            on_bad_lines='skip'
+            on_bad_lines="skip"
         )
-    except Exception as e:
-        raise ValueError(f"Errore parsing tabella: {e}")
 
-    # df0: header (tutte le righe fino alla tabella)
-    df0 = pd.DataFrame(header_lines, columns=["info"])
+        df0 = pd.DataFrame(header_lines, columns=["info"])
 
-    # Parsing header e meta
+    # -------------------------
+    # PARSE HEADER
+    # -------------------------
     header = {
         "attivita": None,
         "ad_cod": None,
@@ -62,37 +58,44 @@ def parse_appello(file):
         "data_appello": None,
         "totale_iscritti": None
     }
+
     meta = {}
 
     for line in header_lines:
-        if "FONDAMENTI" in line and "[MA" in line:
-            header["attivita"] = line.strip()
-            header["ad_cod"] = re.search(r"\[(.*?)\]", line).group(1)
-        elif "INTERNET OF THINGS" in line:
-            header["corsi_studio"].append(line.strip())
-        elif line.startswith("Sessioni"):
-            header["sessione"] = line.split("\t")[-1].strip()
-        elif line.startswith("Descrizione Appello"):
-            header["descrizione"] = line.split("\t")[-1].strip()
-        elif line.startswith("Tipo di Prova"):
-            header["tipo_prova"] = line.split("\t")[-1].strip()
-        elif line.startswith("Prenotazione"):
-            header["prenotazione"] = line.split("\t")[-1].strip()
-        elif line.startswith("Date Appello"):
-            header["data_appello"] = line.split("\t")[-1].strip()
-        elif line.startswith("Totale Studenti"):
-            try:
-                header["totale_iscritti"] = int(line.split("\t")[-1].strip())
-            except:
-                header["totale_iscritti"] = None
-        elif line.startswith("Tipo Esito"):
-            meta["tipo_esito"] = line.split("\t")[-1].strip()
-        elif line.startswith("Tipo Svolgimento"):
-            meta["tipo_svolgimento"] = line.split("\t")[-1].strip()
+        if "FONDAMENTI" in line and "[" in line:
+            header["attivita"] = line
+            m = re.search(r"\[(.*?)\]", line)
+            if m:
+                header["ad_cod"] = m.group(1)
 
-    # ID appello basato sulla data
-    data = header["data_appello"].split("-")[0].strip() if header["data_appello"] else "ND"
-    appello_id = f"{header['ad_cod']}_{data.replace('/', '')}"  # esempio: MA0682_23092025
+        elif "INTERNET OF THINGS" in line:
+            header["corsi_studio"].append(line)
+
+        elif "Sessione" in line:
+            header["sessione"] = line
+
+        elif "Descrizione Appello" in line:
+            header["descrizione"] = line
+
+        elif "Tipo di Prova" in line:
+            header["tipo_prova"] = line
+
+        elif "Prenotazione" in line:
+            header["prenotazione"] = line
+
+        elif "Date Appello" in line:
+            header["data_appello"] = line
+
+        elif "Totale Studenti" in line:
+            nums = re.findall(r"\d+", line)
+            if nums:
+                header["totale_iscritti"] = int(nums[0])
+
+        elif "Tipo Esito" in line:
+            meta["tipo_esito"] = line
+
+    data = header["data_appello"].split()[0] if header["data_appello"] else "ND"
+    appello_id = f"{header['ad_cod']}_{data.replace('/', '')}"
 
     return {
         "id": appello_id,

@@ -53,7 +53,7 @@ def upload():
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
         file.save(filepath)
 
-        appello = parse_appello(open(filepath, "rb"))
+        appello = parse_appello(filepath)
 
         session["appello_corrente"] = {
             "filename": file.filename,
@@ -61,11 +61,6 @@ def upload():
             "header": appello["header"],
             "meta": appello["meta"]
         }
-
-# df1 lo usi solo per grafici, non serve salvare in sessione
-
-# df1 lo usi solo per grafici, non serve salvare in sessione
-
         flash("Appello caricato correttamente")
         return redirect(url_for("dashboard"))
 
