@@ -4,6 +4,9 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from parser import parse_appello
 from grafici import grafico_distribuzione_voti
+from flask import request, redirect, session, url_for
+from parser import parse_appello
+import os
 
 app = Flask(__name__)
 app.secret_key = "supersecret"
@@ -38,35 +41,43 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/upload", methods=["GET", "POST"])
+@app.route("/upload", methods=["POST"])
 def upload():
-    if request.method == "POST":
-        file = request.files.get("file")
-        if not file or file.filename == "":
-            flash("Nessun file selezionato")
-            return redirect(url_for("upload"))
+    file = request.files.get("file")
+    if not file:
+        return "Nessun file caricato", 400
 
-        if not allowed_file(file.filename):
-            flash("Formato non supportato")
-            return redirect(url_for("upload"))
+    # salva temporaneamente il file
+    filepath = os.path.join("uploads", file.filename)
+    file.save(filepath)
 
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-        file.save(filepath)
+    # --------------------------
+    # PARSE APPPELLO
+    # --------------------------
+    try:
+        appello = parse_appello(filepath)   # <-- qui crei 'appello'
+    except Exception as e:
+        return f"Errore nel parsing: {e}", 500
 
-        appello = parse_appello(filepath)
+    # --------------------------
+    # SALVA NELLA SESSIONE
+    # --------------------------
+    if "appelli" not in session:
+        session["appelli"] = []
 
-        session["appello_corrente"] = {
-            "filename": file.filename,
-            "id": appello["id"],
-            "header": appello["header"],
-            "meta": appello["meta"]
-        }
-        flash("Appello caricato correttamente")
-        return redirect(url_for("dashboard"))
+    session["appelli"].append({
+        "filename": file.filename,
+        "id": appello["id"],
+        "header": appello["header"],
+        "meta": appello["meta"]
+    })
 
-    return render_template("upload.html")
+    return redirect(url_for("dashboard"))
 
-
+@app.route("/statistiche")
+def statistiche():
+    # Per ora reindirizza alla dashboard o mostra un messaggio temporaneo
+    return "<h3>Pagina statistiche in costruzione</h3>"
 @app.route("/dashboard")
 def dashboard():
     appello = session.get("appello_corrente")
