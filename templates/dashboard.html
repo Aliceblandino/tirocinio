@@ -17,8 +17,8 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <h5 class="card-title">{{ appello.header.attivita }}</h5>
+                            <p><b>Data appello: {{ appello.header.data_appello }}</b></p>
                             <p>Tipo di prova: {{ appello.header.tipo_prova }}</p>
-                            <p>Data appello: {{ appello.header.data_appello }}</p>
                             <p>Totale studenti iscritti: {{ appello.header.totale_iscritti }}</p>
                             <a href="{{ url_for('grafici', filename=appello.filename) }}" class="btn btn-primary">Visualizza grafico voti</a>
                         </div>
