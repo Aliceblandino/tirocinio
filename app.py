@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from parser import parse_appello
-from grafici import grafico_distribuzione_voti
+from grafici import grafico_distribuzione_voti, grafico_media_totale, grafico_boxplot_per_appello
 from flask import request, redirect, session, url_for
 from parser import parse_appello
 import os
@@ -71,28 +71,13 @@ def upload():
         "header": appello["header"],
         "meta": appello["meta"]
     })
-
+    session["appello_corrente"] = session["appelli"][-1]
     return redirect(url_for("dashboard"))
 
 @app.route("/statistiche")
 def statistiche():
     # Per ora reindirizza alla dashboard o mostra un messaggio temporaneo
     return "<h3>Pagina statistiche in costruzione</h3>"
-@app.route("/dashboard")
-def dashboard():
-    appello = session.get("appello_corrente")
-    if not appello:
-        return render_template("dashboard.html", has_data=False)
-
-    # numero iscritti preso da header
-    n_studenti = appello["header"]["totale_iscritti"]
-
-    return render_template(
-        "dashboard.html",
-        has_data=True,
-        n_studenti=n_studenti,
-        header=appello["header"]
-    )
 
 
 @app.route("/grafici")
@@ -138,6 +123,63 @@ def clear_appelli():
     session.clear()
     flash("Appelli rimossi")
     return redirect(url_for("dashboard"))
+
+def carica_tutti_i_voti():
+    appelli = session.get("appelli", [])
+    tutti_voti = []
+
+    for a in appelli:
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], a["filename"])
+        parsed = parse_appello(filepath)
+        df = parsed["df1"]
+
+        if "Esito" not in df.columns:
+            continue
+
+        df_validi = df[df["Esito"].apply(lambda x: str(x).isdigit())]
+        voti = df_validi["Esito"].astype(int).tolist()
+
+        for v in voti:
+            tutti_voti.append({
+                "voto": v,
+                "appello_id": a["id"],
+                "materia": a["header"]["attivita"]
+            })
+
+    return pd.DataFrame(tutti_voti)
+@app.route("/statistiche_globali")
+def statistiche_globali():
+    df = carica_tutti_i_voti()
+
+    if df.empty:
+        flash("Nessun dato disponibile per le statistiche")
+        return redirect(url_for("dashboard"))
+
+    graph_media = grafico_media_totale(df)
+    graph_box = grafico_boxplot_per_appello(df)
+
+    return render_template(
+        "statistiche.html",
+        graph_media=graph_media,
+        graph_box=graph_box
+    )
+
+@app.route("/dashboard")
+def dashboard():
+    appelli = session.get("appelli", [])
+
+    graph_media = None
+
+    if appelli:
+        df = carica_tutti_i_voti()
+        if not df.empty:
+            graph_media = grafico_media_totale(df)
+
+    return render_template(
+        "dashboard.html",
+        appelli=appelli,
+        graphJSON=graph_media
+    )
 
 
 if __name__ == "__main__":

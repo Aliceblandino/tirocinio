@@ -29,3 +29,26 @@ def grafico_distribuzione_voti(df):
     )
 
     return fig.to_json()
+import plotly.express as px
+
+def grafico_media_totale(df):
+    media = df["voto"].mean()
+
+    fig = px.bar(
+        x=["Media complessiva"],
+        y=[media],
+        labels={"y": "Voto medio"},
+        title="Media totale dei voti (tutti gli appelli)"
+    )
+
+    return fig.to_json()
+
+def grafico_boxplot_per_appello(df):
+    fig = px.box(
+        df,
+        x="materia",
+        y="voto",
+        title="Distribuzione voti per appello"
+    )
+
+    return fig.to_json()
