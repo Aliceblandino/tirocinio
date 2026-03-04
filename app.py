@@ -3,32 +3,20 @@ import os
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from parser import parse_appello
-from grafici import grafico_distribuzione_voti, grafico_media_totale, grafico_boxplot_per_appello
-from flask import request, redirect, session, url_for
-from parser import parse_appello
-import os
+from grafici import *  # importa tutte le funzioni dai grafici
 
 app = Flask(__name__)
 app.secret_key = "supersecret"
- 
+
+# ---------------- CONFIG ----------------
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
 
-
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def leggi_file(filepath):
-    if filepath.endswith(".csv"):
-        return pd.read_csv(filepath, sep=";", engine="python", on_bad_lines="skip")
-    elif filepath.endswith(".xls") or filepath.endswith(".xlsx"):
-        return pd.read_excel(filepath)
-    return None
-
 
 # ---------------- ROUTES ----------------
 
@@ -40,28 +28,20 @@ def index():
         return render_template("index.html", error="Credenziali errate")
     return render_template("index.html")
 
-
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
     if not file:
         return "Nessun file caricato", 400
 
-    # salva temporaneamente il file
-    filepath = os.path.join("uploads", file.filename)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
     file.save(filepath)
 
-    # --------------------------
-    # PARSE APPPELLO
-    # --------------------------
     try:
-        appello = parse_appello(filepath)   # <-- qui crei 'appello'
+        appello = parse_appello(filepath)
     except Exception as e:
         return f"Errore nel parsing: {e}", 500
 
-    # --------------------------
-    # SALVA NELLA SESSIONE
-    # --------------------------
     if "appelli" not in session:
         session["appelli"] = []
 
@@ -74,56 +54,34 @@ def upload():
     session["appello_corrente"] = session["appelli"][-1]
     return redirect(url_for("dashboard"))
 
-@app.route("/statistiche")
-def statistiche():
-    # Per ora reindirizza alla dashboard o mostra un messaggio temporaneo
-    return "<h3>Pagina statistiche in costruzione</h3>"
-
-
-@app.route("/grafici")
-def grafici():
-    app.logger.debug("Entrato in grafici()")
-    appello = session.get("appello_corrente")
-    app.logger.debug(f"Appello in sessione: {appello}")
-
-    if not appello:
-        app.logger.warning("Nessun appello trovato nella sessione")
-        flash("Nessun appello caricato")
-        return redirect(url_for("dashboard"))
-
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
-    app.logger.debug(f"Path file: {filepath}")
-
-    appello_parsed = parse_appello(open(filepath, "rb"))
-    df1 = appello_parsed["df1"]
-    app.logger.debug(f"Colonne df1: {df1.columns.tolist()}")
-
-    if "Esito" not in df1.columns:
-        app.logger.warning("Colonna 'Esito' non trovata in df1")
-        flash("Il file non contiene la colonna 'Esito'. Impossibile generare grafico.")
-        return redirect(url_for("dashboard"))
-
-    graphJSON = grafico_distribuzione_voti(df1)
-    app.logger.debug("Generato graphJSON")
-
-    return render_template(
-        "grafici.html",
-        graphJSON=graphJSON,
-        header=appello["header"]
-    )
-
-
 @app.route("/clear_appelli", methods=["POST"])
 def clear_appelli():
-    # Svuota cartella upload
+    # svuota cartella upload
     for f in os.listdir(app.config["UPLOAD_FOLDER"]):
         os.remove(os.path.join(app.config["UPLOAD_FOLDER"], f))
-
-    # Svuota sessione
     session.clear()
     flash("Appelli rimossi")
     return redirect(url_for("dashboard"))
 
+@app.route("/grafici")
+def grafici():
+    appello = session.get("appello_corrente")
+    if not appello:
+        flash("Nessun appello caricato")
+        return redirect(url_for("dashboard"))
+
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
+    appello_parsed = parse_appello(filepath)
+    df1 = appello_parsed["df1"]
+
+    if "Esito" not in df1.columns:
+        flash("Il file non contiene la colonna 'Esito'. Impossibile generare grafico.")
+        return redirect(url_for("dashboard"))
+
+    graphJSON = grafico_distribuzione_voti(df1)
+    return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
+
+# ---------------- FUNZIONI AUSILIARIE ----------------
 def carica_tutti_i_voti():
     appelli = session.get("appelli", [])
     tutti_voti = []
@@ -147,40 +105,59 @@ def carica_tutti_i_voti():
             })
 
     return pd.DataFrame(tutti_voti)
+
+# ---------------- DASHBOARD E STATISTICHE ----------------
+
+@app.route("/dashboard")
+def dashboard():
+    appelli = session.get("appelli", [])
+    graph_media = None
+    graph_box = None
+
+    if appelli:
+        df = carica_tutti_i_voti()
+        if not df.empty:
+            graph_media = grafico_media_totale(df)
+            graph_box = grafico_boxplot_per_appello(df)
+
+    return render_template(
+        "dashboard.html",
+        appelli=appelli,
+        graph_media=graph_media,
+        graph_box=graph_box
+    )
+
 @app.route("/statistiche_globali")
 def statistiche_globali():
     df = carica_tutti_i_voti()
-
     if df.empty:
         flash("Nessun dato disponibile per le statistiche")
         return redirect(url_for("dashboard"))
 
     graph_media = grafico_media_totale(df)
     graph_box = grafico_boxplot_per_appello(df)
+    return render_template("statistiche.html", graph_media=graph_media, graph_box=graph_box)
 
-    return render_template(
-        "statistiche.html",
-        graph_media=graph_media,
-        graph_box=graph_box
-    )
-
-@app.route("/dashboard")
-def dashboard():
+@app.route("/grafici/appello/<appello_id>")
+def grafici_appello(appello_id):
     appelli = session.get("appelli", [])
+    appello = next((a for a in appelli if a["id"] == appello_id), None)
 
-    graph_media = None
+    if not appello:
+        flash("Appello non trovato")
+        return redirect(url_for("dashboard"))
 
-    if appelli:
-        df = carica_tutti_i_voti()
-        if not df.empty:
-            graph_media = grafico_media_totale(df)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
+    parsed = parse_appello(filepath)
+    df1 = parsed["df1"]
 
-    return render_template(
-        "dashboard.html",
-        appelli=appelli,
-        graphJSON=graph_media
-    )
+    if "Esito" not in df1.columns:
+        flash("Il file non contiene la colonna 'Esito'.")
+        return redirect(url_for("dashboard"))
 
+    graphJSON = grafico_distribuzione_voti(df1)
+
+    return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
 
 if __name__ == "__main__":
     app.run(debug=True)

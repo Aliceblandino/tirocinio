@@ -16,47 +16,15 @@
 
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
 
-    <!-- MEDIA TOTALE -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Media complessiva dei voti</h5>
-
-            {% if graph_media %}
-                <div id="media-chart" style="height: 400px;"></div>
-                <script>
-                    var mediaGraph = {{ graph_media | safe }};
-                    Plotly.newPlot(
-                        'media-chart',
-                        mediaGraph.data,
-                        mediaGraph.layout
-                    );
-                </script>
-            {% else %}
-                <p class="text-muted">Nessun dato disponibile</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- BOXPLOT PER APPELLO -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Distribuzione voti per appello</h5>
-
-            {% if graph_box %}
-                <div id="boxplot-chart" style="height: 500px;"></div>
-                <script>
-                    var boxGraph = {{ graph_box | safe }};
-                    Plotly.newPlot(
-                        'boxplot-chart',
-                        boxGraph.data,
-                        boxGraph.layout
-                    );
-                </script>
-            {% else %}
-                <p class="text-muted">Nessun dato disponibile</p>
-            {% endif %}
-        </div>
-    </div>
+   <h5>Tutti i grafici</h5>
+{% for grafico in session.grafici %}
+    <div id="chart-{{ loop.index }}" style="height: 400px;"></div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        var g = {{ grafico|safe }};
+        Plotly.newPlot('chart-{{ loop.index }}', g.data, g.layout);
+    </script>
+{% endfor %}
 
     <!-- TORNA ALLA DASHBOARD -->
     <a href="{{ url_for('dashboard') }}"
