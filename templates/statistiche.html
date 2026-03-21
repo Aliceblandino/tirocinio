@@ -17,14 +17,32 @@
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
 
    <h5>Tutti i grafici</h5>
-{% for grafico in session.grafici %}
-    <div id="chart-{{ loop.index }}" style="height: 400px;"></div>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script>
-        var g = {{ grafico|safe }};
-        Plotly.newPlot('chart-{{ loop.index }}', g.data, g.layout);
-    </script>
-{% endfor %}
+    
+        <div>
+                        <!-- <h5>Boxplot</h5> -->
+                        <div id="g0"></div>
+
+                        <!-- <h5>Media voti (solo valutati)</h5> -->
+                        <div id="g1"></div>
+
+                        <!-- <h5>Media voti (globale)</h5> -->
+                        <div id="g2"></div>
+
+                        <!-- <h5>Distribuzione esiti</h5> -->
+                        <div id="g3"></div>
+                        <!-- <h5>Distribuzione voti (solo sufficienti)</h5> -->
+                        <div id="g4"></div>
+
+                        <script>
+                        Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
+                        Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
+                        Plotly.newPlot('g2', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
+                        Plotly.newPlot('g3', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
+                        Plotly.newPlot('g4', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
+                        </script>
+                    
+                    </div>
+    
 
     <!-- TORNA ALLA DASHBOARD -->
     <a href="{{ url_for('dashboard') }}"
@@ -33,5 +51,6 @@
     </a>
 
 </div>
+<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
 </html>

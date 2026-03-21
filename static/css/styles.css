@@ -1,0 +1,67 @@
+.delete-btn {
+    width: 35px;
+    height: 35px;
+    border: none;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.delete-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.card-header-custom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ICONA TRASH */
+.trash-icon {
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #6c757d;
+}
+
+.trash-icon:hover {
+    color: #dc3545;
+    transform: scale(1.2);
+}
+
+.trash-icon.open {
+    transform: rotate(-25deg) scale(1.3);
+    color: #dc3545;
+}
+/* Animazione fade-in dall'alto: transizione di dissolvenza + zoom */
+.page-transition {
+    transition: all 0.5s ease;
+    transform-origin: center top;
+}
+.page-transition.zoom-out {
+    opacity: 0;
+    transform: scale(1.05);
+}
+
+/* Animazione fade-in + slide dall'alto per la pagina dettaglio */
+/* Stato iniziale invisibile */
+.fade-slide-in {
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.fade-slide-in.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* pagina dettaglio */
+#card-dettaglio {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+

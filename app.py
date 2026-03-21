@@ -28,30 +28,45 @@ def index():
         return render_template("index.html", error="Credenziali errate")
     return render_template("index.html")
 
+from werkzeug.utils import secure_filename
+
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
-    file = request.files.get("file")
-    if not file:
+    files = request.files.getlist("files")
+
+    if not files:
         return "Nessun file caricato", 400
-
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-    file.save(filepath)
-
-    try:
-        appello = parse_appello(filepath)
-    except Exception as e:
-        return f"Errore nel parsing: {e}", 500
 
     if "appelli" not in session:
         session["appelli"] = []
 
-    session["appelli"].append({
-        "filename": file.filename,
-        "id": appello["id"],
-        "header": appello["header"],
-        "meta": appello["meta"]
-    })
-    session["appello_corrente"] = session["appelli"][-1]
+    for file in files:
+        if file.filename == "":
+            continue
+
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+        file.save(filepath)
+
+        try:
+            appello = parse_appello(filepath)
+        except Exception as e:
+            print("Errore parsing:", e)
+            continue  # salta file problematici
+
+        session["appelli"].append({
+            "filename": file.filename,
+            "filepath": filepath,
+            "id": appello["id"],
+            "header": appello["header"],
+            "meta": appello["meta"]
+        })
+
+    # salva ultimo come corrente
+    if session["appelli"]:
+        session["appello_corrente"] = session["appelli"][-1]
+
     return redirect(url_for("dashboard"))
 
 @app.route("/clear_appelli", methods=["POST"])
@@ -94,12 +109,26 @@ def carica_tutti_i_voti():
         if "Esito" not in df.columns:
             continue
 
-        df_validi = df[df["Esito"].apply(lambda x: str(x).isdigit())]
-        voti = df_validi["Esito"].astype(int).tolist()
+        serie = df["Esito"].astype(str).str.strip()
+        serie = serie.replace("30L", 31)
 
-        for v in voti:
+        voti_num = pd.to_numeric(serie, errors="coerce")
+
+        for i, val in enumerate(serie):
+            voto_num = voti_num.iloc[i]
+
+            if pd.notna(voto_num):
+                tipo = "voto"
+            elif "assente" in val.lower():
+                tipo = "assente"
+            elif "ritir" in val.lower():
+                tipo = "ritirato"
+            else:
+                tipo = "altro"
+
             tutti_voti.append({
-                "voto": v,
+                "voto": voto_num,
+                "tipo": tipo,  # ✅ ORA ESISTE
                 "appello_id": a["id"],
                 "materia": a["header"]["attivita"]
             })
@@ -107,37 +136,74 @@ def carica_tutti_i_voti():
     return pd.DataFrame(tutti_voti)
 
 # ---------------- DASHBOARD E STATISTICHE ----------------
-
+#----------------- DASHBOARD ----------------
 @app.route("/dashboard")
 def dashboard():
     appelli = session.get("appelli", [])
-    graph_media = None
+   # graph_media = None
     graph_box = None
+    graph_media_solo = None
+    graph_media_globale = None
+    graph_esiti = None
+    graph_distribuzione_voti = None
+
 
     if appelli:
         df = carica_tutti_i_voti()
         if not df.empty:
-            graph_media = grafico_media_totale(df)
+            #graph_media = grafico_distribuzione_voti(df)
+            graph_distribuzione_voti = grafico_distribuzione_voti(df)
             graph_box = grafico_boxplot_per_appello(df)
+            graph_media_solo = grafico_media_voti_solo(df)
+            graph_media_globale = grafico_media_globale(df)
+            graph_esiti = grafico_esiti(df)
+            #graph_distribuzione_voti = grafico_distribuzione_voti(df)
 
     return render_template(
         "dashboard.html",
         appelli=appelli,
-        graph_media=graph_media,
-        graph_box=graph_box
+        graph_distribuzione_voti=graph_distribuzione_voti,
+        #graph_media=graph_media,
+        graph_box=graph_box,
+        graph_media_solo=graph_media_solo,
+        graph_media_globale=graph_media_globale,
+        graph_esiti=graph_esiti
     )
-
+# ---------------- STATISTICHE GLOBALI ----------------
 @app.route("/statistiche_globali")
 def statistiche_globali():
-    df = carica_tutti_i_voti()
-    if df.empty:
-        flash("Nessun dato disponibile per le statistiche")
-        return redirect(url_for("dashboard"))
+    appelli = session.get("appelli", [])
+   # graph_media = None
+    graph_box = None
+    graph_media_solo = None
+    graph_media_globale = None
+    graph_esiti = None
+    graph_distribuzione_voti = None
 
-    graph_media = grafico_media_totale(df)
-    graph_box = grafico_boxplot_per_appello(df)
-    return render_template("statistiche.html", graph_media=graph_media, graph_box=graph_box)
 
+    if appelli:
+        df = carica_tutti_i_voti()
+        if not df.empty:
+            #graph_media = grafico_distribuzione_voti(df)
+            graph_distribuzione_voti = grafico_distribuzione_voti(df)
+            graph_box = grafico_boxplot_per_appello(df)
+            graph_media_solo = grafico_media_voti_solo(df)
+            graph_media_globale = grafico_media_globale(df)
+            graph_esiti = grafico_esiti(df)
+            #graph_distribuzione_voti = grafico_distribuzione_voti(df)
+
+    return render_template(
+        "statistiche.html",
+        appelli=appelli,
+        graph_distribuzione_voti=graph_distribuzione_voti,
+        #graph_media=graph_media,
+        graph_box=graph_box,
+        graph_media_solo=graph_media_solo,
+        graph_media_globale=graph_media_globale,
+        graph_esiti=graph_esiti
+    )
+
+# ---------------- GRAFICI PER APPELLO ----------------
 @app.route("/grafici/appello/<appello_id>")
 def grafici_appello(appello_id):
     appelli = session.get("appelli", [])
@@ -159,5 +225,52 @@ def grafici_appello(appello_id):
 
     return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
 
+# ---------------- ELIMINAZIONE APPELLO ----------------
+@app.route("/delete_appello/<appello_id>", methods=["POST"])
+def delete_appello(appello_id):
+    appelli = session.get("appelli", [])
+
+    # filtra via l'appello da eliminare
+    appelli = [a for a in appelli if a["id"] != appello_id]
+
+    session["appelli"] = appelli
+
+    # opzionale: aggiorna appello corrente
+    if appelli:
+        session["appello_corrente"] = appelli[-1]
+    else:
+        session.pop("appello_corrente", None)
+
+    flash("Appello eliminato")
+
+    return redirect(url_for("dashboard"))
+
+from flask import render_template, session, abort
+
+# ---------------- DETTAGLIO APPELLO ----------------
+@app.route("/appello/<appello_id>")
+def dettaglio_appello(appello_id):
+    df = carica_tutti_i_voti()
+    header = {
+        "attivita": "Fondamenti di Scienza dei Dati e Laboratorio",
+        "codice": appello_id,  # es: MA0682
+        "data_appello": "17/06/2026",
+        "tipo_prova": "Orale",
+        "totale_iscritti": len(df[df["appello_id"] == appello_id])
+    }
+
+    grafico_distribuzione = grafico_distribuzione_appello(df, appello_id)
+    grafico_boxplot = grafico_boxplot_appello(df, appello_id)
+    grafico_media = grafico_media_appello(df, appello_id)
+
+    return render_template(
+        "dettaglio_appello.html",
+        appello={"header": header},
+        grafico_distribuzione=grafico_distribuzione,
+        grafico_boxplot=grafico_boxplot,
+        grafico_media=grafico_media
+    )
+
 if __name__ == "__main__":
     app.run(debug=True)
+    
