@@ -115,20 +115,30 @@ def carica_tutti_i_voti():
         voti_num = pd.to_numeric(serie, errors="coerce")
 
         for i, val in enumerate(serie):
+            val_str = str(val).strip().upper()
             voto_num = voti_num.iloc[i]
-
-            if pd.notna(voto_num):
-                tipo = "voto"
-            elif "assente" in val.lower():
+            if val_str == "ASS":
                 tipo = "assente"
-            elif "ritir" in val.lower():
+            # RITIRATO
+            elif val_str == "RIT":
                 tipo = "ritirato"
+
+            # BOCCIATO (voto = 0)
+            elif pd.notna(voto_num) and voto_num == 0:
+                tipo = "bocciato"
+
+            # PROMOSSO (>=18)
+            elif pd.notna(voto_num) and voto_num >= 18:
+                tipo = "promosso"
+
+            # ALTRO (valori strani)
             else:
                 tipo = "altro"
 
+
             tutti_voti.append({
                 "voto": voto_num,
-                "tipo": tipo,  # ✅ ORA ESISTE
+                "tipo": tipo, 
                 "appello_id": a["id"],
                 "materia": a["header"]["attivita"]
             })
@@ -142,7 +152,7 @@ def dashboard():
     appelli = session.get("appelli", [])
    # graph_media = None
     graph_box = None
-    graph_media_solo = None
+    #graph_media_solo = None
     graph_media_globale = None
     graph_esiti = None
     graph_distribuzione_voti = None
@@ -154,7 +164,7 @@ def dashboard():
             #graph_media = grafico_distribuzione_voti(df)
             graph_distribuzione_voti = grafico_distribuzione_voti(df)
             graph_box = grafico_boxplot_per_appello(df)
-            graph_media_solo = grafico_media_voti_solo(df)
+            #graph_media_solo = grafico_media_voti_solo(df)
             graph_media_globale = grafico_media_globale(df)
             graph_esiti = grafico_esiti(df)
             #graph_distribuzione_voti = grafico_distribuzione_voti(df)
@@ -165,7 +175,7 @@ def dashboard():
         graph_distribuzione_voti=graph_distribuzione_voti,
         #graph_media=graph_media,
         graph_box=graph_box,
-        graph_media_solo=graph_media_solo,
+        #graph_media_solo=graph_media_solo,
         graph_media_globale=graph_media_globale,
         graph_esiti=graph_esiti
     )
@@ -175,7 +185,7 @@ def statistiche_globali():
     appelli = session.get("appelli", [])
    # graph_media = None
     graph_box = None
-    graph_media_solo = None
+    #graph_media_solo = None
     graph_media_globale = None
     graph_esiti = None
     graph_distribuzione_voti = None
@@ -187,7 +197,7 @@ def statistiche_globali():
             #graph_media = grafico_distribuzione_voti(df)
             graph_distribuzione_voti = grafico_distribuzione_voti(df)
             graph_box = grafico_boxplot_per_appello(df)
-            graph_media_solo = grafico_media_voti_solo(df)
+            #graph_media_solo = grafico_media_voti_solo(df)
             graph_media_globale = grafico_media_globale(df)
             graph_esiti = grafico_esiti(df)
             #graph_distribuzione_voti = grafico_distribuzione_voti(df)
@@ -198,7 +208,7 @@ def statistiche_globali():
         graph_distribuzione_voti=graph_distribuzione_voti,
         #graph_media=graph_media,
         graph_box=graph_box,
-        graph_media_solo=graph_media_solo,
+        #graph_media_solo=graph_media_solo,
         graph_media_globale=graph_media_globale,
         graph_esiti=graph_esiti
     )
@@ -251,13 +261,18 @@ from flask import render_template, session, abort
 @app.route("/appello/<appello_id>")
 def dettaglio_appello(appello_id):
     df = carica_tutti_i_voti()
-    header = {
-        "attivita": "Fondamenti di Scienza dei Dati e Laboratorio",
-        "codice": appello_id,  # es: MA0682
-        "data_appello": "17/06/2026",
-        "tipo_prova": "Orale",
-        "totale_iscritti": len(df[df["appello_id"] == appello_id])
-    }
+    df_appello = df[df["appello_id"] == appello_id]
+
+    if df_appello.empty:
+        return "Appello non trovato", 404
+
+    appelli = session.get("appelli", [])
+    appello_obj = next((a for a in appelli if a["id"] == appello_id), None)
+
+    if not appello_obj:
+        return "Appello non trovato", 404
+
+    header = appello_obj["header"] 
 
     grafico_distribuzione = grafico_distribuzione_appello(df, appello_id)
     grafico_boxplot = grafico_boxplot_appello(df, appello_id)

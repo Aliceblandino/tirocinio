@@ -17,13 +17,13 @@
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
 
    <h5>Tutti i grafici</h5>
-    
+    {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
         <div>
                         <!-- <h5>Boxplot</h5> -->
                         <div id="g0"></div>
 
                         <!-- <h5>Media voti (solo valutati)</h5> -->
-                        <div id="g1"></div>
+                        <!-- <div id="g1"></div> -->
 
                         <!-- <h5>Media voti (globale)</h5> -->
                         <div id="g2"></div>
@@ -35,12 +35,12 @@
 
                         <script>
                         Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
-                        Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
+                        //  Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
                         Plotly.newPlot('g2', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
                         Plotly.newPlot('g3', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
                         Plotly.newPlot('g4', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
                         </script>
-                    
+        {% endif %}            
                     </div>
     
 
