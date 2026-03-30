@@ -2,6 +2,8 @@
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import numpy as np
+
 
 ## GRAFICI GLOBALI (credo a questo punto)
 #boxplot (1)
@@ -96,7 +98,74 @@ def grafico_distribuzione_voti(df):
         }
     }
     return graph
+#distribuzione cumulativa bruttino (5)
+def grafico_distribuzione_cumulativa(df):
+    # prendiamo solo i voti validi
+    df_validi = df.dropna(subset=["voto"]).copy()
+    df_validi["voto"] = df_validi["voto"].astype(float)
+
+    # trasformiamo i voti in categorie
+    def categ(v):
+        if v < 18:
+            return "Insufficiente"
+        elif v == 31:
+            return "30L"
+        else:
+            return str(int(v))
+
+    df_validi["categoria"] = df_validi["voto"].apply(categ)
+
+    # ordine categorie
+    ordine = ["Insufficiente"] + [str(i) for i in range(18, 31)] + ["30L"]
+    df_validi["categoria"] = pd.Categorical(df_validi["categoria"], categories=ordine, ordered=True)
+
+    fig = go.Figure()
+    for appello in df_validi["appello_id"].unique():
+        df_app = df_validi[df_validi["appello_id"] == appello]
+
+        fig.add_trace(go.Histogram(
+            x=df_app["categoria"],
+            name=f"Appello {appello}",
+            opacity=0.6
+        ))
+
+    # Ordine asse X
+    fig.update_xaxes(categoryorder="array", categoryarray=ordine)
+
+    fig.update_layout(
+        title="Distribuzione dei voti per appello",
+        xaxis_title="Voto",
+        yaxis_title="Frequenza",
+        barmode="overlay"   # barre sovrapposte
+    )
+
+    return fig.to_json()
+
+#distribuzione maschi/femmine per appello (6)
+def grafico_genere_per_appello(df):
+    fig = px.histogram(
+        df,
+        x="appello_id",
+        color="Genere",
+        barmode="group",
+        title="Distribuzione maschi/femmine per appello",
+        category_orders={"Genere": ["M", "F", "?"]},
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+
+    fig.update_layout(
+        xaxis_title="Appello",
+        yaxis_title="Numero studenti"
+    )
+
+    return fig.to_json()
+
 #GRAFICI NUOVI
+
+
+
+
+
 
 
 

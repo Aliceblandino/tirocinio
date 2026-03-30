@@ -4,6 +4,10 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from parser import parse_appello
 from grafici import *  # importa tutte le funzioni dai grafici
+import re
+from genderize import Genderize #problema richieste limitate
+import gender_guesser.detector as gender
+
 
 app = Flask(__name__)
 app.secret_key = "supersecret"
@@ -97,6 +101,31 @@ def grafici():
     return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
 
 # ---------------- FUNZIONI AUSILIARIE ----------------
+def normalize_name(nome):
+    if not isinstance(nome, str) or nome.strip() == "":
+        return ""
+    nome = nome.strip().split()[0]  # primo nome
+    nome = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ]", "", nome)
+    return nome.capitalize()
+#funzione per individuazione di genere
+detector=gender.Detector(case_sensitive=False)
+def guess_gender(nome):
+    if not nome or nome.strip() == "":
+        return "?"
+
+    g = detector.get_gender(nome)
+
+    # gender-guesser ritorna:
+    # 'male', 'female', 'mostly_male', 'mostly_female', 'andy', 'unknown'
+    if g in ["male", "mostly_male"]:
+        return "M"
+    if g in ["female", "mostly_female"]:
+        return "F"
+
+    # 'andy' (androgino) e 'unknown' → non determinabile
+    return "?"
+
+
 def carica_tutti_i_voti():
     appelli = session.get("appelli", [])
     tutti_voti = []
@@ -109,41 +138,58 @@ def carica_tutti_i_voti():
         if "Esito" not in df.columns:
             continue
 
+        # prova a prendere il nome (adatta il nome colonna se diverso)
+        col_nome = None
+        for c in df.columns:
+            if str(c).strip().lower() in ["nome", "studente", "cognome e nome"]:
+                col_nome = c
+                break
+
+        if col_nome is None:
+            df["__NOME__"] = ""
+            col_nome = "__NOME__"
+
         serie = df["Esito"].astype(str).str.strip()
         serie = serie.replace("30L", 31)
-
         voti_num = pd.to_numeric(serie, errors="coerce")
 
         for i, val in enumerate(serie):
             val_str = str(val).strip().upper()
             voto_num = voti_num.iloc[i]
+            nome_raw = df.iloc[i][col_nome]
+
             if val_str == "ASS":
                 tipo = "assente"
-            # RITIRATO
             elif val_str == "RIT":
                 tipo = "ritirato"
-
-            # BOCCIATO (voto = 0)
             elif pd.notna(voto_num) and voto_num == 0:
                 tipo = "bocciato"
-
-            # PROMOSSO (>=18)
             elif pd.notna(voto_num) and voto_num >= 18:
                 tipo = "promosso"
-
-            # ALTRO (valori strani)
             else:
                 tipo = "altro"
 
-
             tutti_voti.append({
                 "voto": voto_num,
-                "tipo": tipo, 
+                "tipo": tipo,
                 "appello_id": a["id"],
-                "materia": a["header"]["attivita"]
+                "materia": a["header"]["attivita"],
+                "nome_raw": nome_raw
             })
 
-    return pd.DataFrame(tutti_voti)
+    df_all = pd.DataFrame(tutti_voti)
+
+    if df_all.empty:
+        return df_all
+
+    #genre
+    # normalizza nome
+    df_all["Nome_norm"] = df_all["nome_raw"].apply(normalize_name)
+    # gender-guesser
+    df_all["Genere"] = df_all["Nome_norm"].apply(guess_gender)
+
+
+    return df_all
 
 # ---------------- DASHBOARD E STATISTICHE ----------------
 #----------------- DASHBOARD ----------------
@@ -168,6 +214,8 @@ def dashboard():
             graph_media_globale = grafico_media_globale(df)
             graph_esiti = grafico_esiti(df)
             #graph_distribuzione_voti = grafico_distribuzione_voti(df)
+            graph_genere = grafico_genere_per_appello(df)
+
 
     return render_template(
         "dashboard.html",
@@ -177,7 +225,8 @@ def dashboard():
         graph_box=graph_box,
         #graph_media_solo=graph_media_solo,
         graph_media_globale=graph_media_globale,
-        graph_esiti=graph_esiti
+        graph_esiti=graph_esiti,
+        graph_genere=graph_genere
     )
 # ---------------- STATISTICHE GLOBALI ----------------
 @app.route("/statistiche_globali")
@@ -200,7 +249,9 @@ def statistiche_globali():
             #graph_media_solo = grafico_media_voti_solo(df)
             graph_media_globale = grafico_media_globale(df)
             graph_esiti = grafico_esiti(df)
-            #graph_distribuzione_voti = grafico_distribuzione_voti(df)
+            graph_cumulativa = grafico_distribuzione_cumulativa(df)
+            graph_genere = grafico_genere_per_appello(df)
+
 
     return render_template(
         "statistiche.html",
@@ -210,7 +261,9 @@ def statistiche_globali():
         graph_box=graph_box,
         #graph_media_solo=graph_media_solo,
         graph_media_globale=graph_media_globale,
-        graph_esiti=graph_esiti
+        graph_esiti=graph_esiti,
+        graph_cumulativa=graph_cumulativa,
+        graph_genere=graph_genere
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------

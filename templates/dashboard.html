@@ -92,6 +92,7 @@
                         <div id="g3"></div>
                         <!-- <h5>Distribuzione voti (solo sufficienti)</h5> -->
                         <div id="g4"></div>
+                        <div id="g5"></div>
 
                         <script>
                         Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
@@ -102,6 +103,7 @@
                         Plotly.newPlot('g3', g3.data, g3.layout);
 
                         Plotly.newPlot('g4', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
+                        Plotly.newPlot('g5', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
                         </script>
                     {% endif %}
                     </div>
