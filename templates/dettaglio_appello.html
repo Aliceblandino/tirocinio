@@ -40,6 +40,9 @@
             <h5>Media</h5>
             <div id="grafico-media"></div>
         </div>
+        <div class="col-md-6 mt-4">
+            <h5>Genere</h5>
+            <div id="grafico-genere"></div>
 
     </div>
 </div>
@@ -54,6 +57,10 @@
 
     const graficoMedia = {{ grafico_media | tojson }};
     Plotly.newPlot('grafico-media', graficoMedia.data, graficoMedia.layout);
+    
+    const graficoGenere = JSON.parse({{ grafico_genere | tojson }});
+    Plotly.newPlot('grafico-genere', graficoGenere.data, graficoGenere.layout);
+
 </script>
 
 </div>

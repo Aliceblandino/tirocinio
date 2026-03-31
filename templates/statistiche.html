@@ -13,39 +13,74 @@
 
 <body>
 <div class="container mt-4">
-
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
+    <form method="POST" action="/dashboard">
+        <div id="menu-temi" class="mb-3">
+            <h5>Seleziona statistiche</h5>
+            <label><input type="checkbox" class="tema-check" value="ripetizioni" checked> Ripetizioni</label>
+            <label><input type="checkbox" class="tema-check" value="genere" checked> Genere</label>
+            <label><input type="checkbox" class="tema-check" value="voti" checked> Voti</label>
+            <label><input type="checkbox" class="tema-check" value="boxplot" checked> Boxplot</label>
+            <label><input type="checkbox" class="tema-check" value="media" checked> Media</label>
+            <label><input type="checkbox" class="tema-check" value="esiti" checked> Esiti</label>
+        </div>
+        <!-- Aggiungi altri checkbox per altre statistiche -->
+        <h5 class="mt-3">Appelli da includere</h5>
+        {% for a in appelli %}
+            <label>
+                <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
+                {{ a.header.data }} – {{ a.header.attivita }}
+            </label><br>
+        {% endfor %}
 
-   <h5>Tutti i grafici</h5>
+        <button class="btn btn-primary mt-3">Aggiorna grafici</button>
+    </form>
+    <h5>Tutti i grafici</h5>
     {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
         <div>
-                        <!-- <h5>Boxplot</h5> -->
-                        <div id="g0"></div>
+            <div id="g-boxplot" data-theme="boxplot"></div>
+            <div id="g-media" data-theme="media"></div>
+            <div id="g-esiti" data-theme="esiti"></div>
+            <div id="g-dvoti" data-theme="voti"></div>
+            <div id="g-genere" data-theme="genere"></div>
+            <div id="g-ripetizioni" data-theme="ripetizioni"></div>
+            <div id="g-cumulativa" data-theme="cumulativa"></div>
+                        
+                        
+                        
+                        
+                        
 
-                        <!-- <h5>Media voti (solo valutati)</h5> -->
-                        <!-- <div id="g1"></div> -->
 
-                        <!-- <h5>Media voti (globale)</h5> -->
-                        <div id="g2"></div>
+            <script>
+                Plotly.newPlot('g-boxplot', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
+                //Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
+                Plotly.newPlot('g-media', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
+                Plotly.newPlot('g-esiti', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
+                Plotly.newPlot('g-dvoti', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
+                Plotly.newPlot('g-cumulativa', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
+                Plotly.newPlot('g-genere', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
+                Plotly.newPlot('g-ripetizioni', {{ graph_ripetizioni | safe }}.data, {{ graph_ripetizioni | safe }}.layout);
+                Plotly.newPlot('g-cumulativa', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
 
-                        <!-- <h5>Distribuzione esiti</h5> -->
-                        <div id="g3"></div>
-                        <!-- <h5>Distribuzione voti (solo sufficienti)</h5> -->
-                        <div id="g4"></div>
-                        <div id="g5"></div>
-                        <div id="g6"></div>
+                
+            </script>
+            <script>
+            document.querySelectorAll(".tema-check").forEach(check => {
+                check.addEventListener("change", () => {
+                    const selected = Array.from(document.querySelectorAll(".tema-check:checked"))
+                                        .map(c => c.value);
 
-                        <script>
-                        Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
-                        //  Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
-                        Plotly.newPlot('g2', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
-                        Plotly.newPlot('g3', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
-                        Plotly.newPlot('g4', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
-                        Plotly.newPlot('g5', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
-                        Plotly.newPlot('g6', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
-                        </script>
+                    document.querySelectorAll("[data-theme]").forEach(div => {
+                        const theme = div.getAttribute("data-theme");
+                        div.style.display = selected.includes(theme) ? "block" : "none";
+                    });
+                });
+            });
+            </script>
+
         {% endif %}            
-                    </div>
+        </div>
     
 
     <!-- TORNA ALLA DASHBOARD -->

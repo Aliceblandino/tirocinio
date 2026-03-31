@@ -107,6 +107,7 @@ def normalize_name(nome):
     nome = nome.strip().split()[0]  # primo nome
     nome = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ]", "", nome)
     return nome.capitalize()
+
 #funzione per individuazione di genere
 detector=gender.Detector(case_sensitive=False)
 def guess_gender(nome):
@@ -121,10 +122,32 @@ def guess_gender(nome):
         return "M"
     if g in ["female", "mostly_female"]:
         return "F"
-
     # 'andy' (androgino) e 'unknown' → non determinabile
     return "?"
 
+def carica_ripetizioni():
+    appelli = session.get("appelli", [])
+    rows = []
+
+    for a in appelli:
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], a["filename"])
+        parsed = parse_appello(filepath)
+        df = parsed["df1"]
+
+        df.columns = df.columns.str.strip()
+
+        if "Matricola" not in df.columns:
+            continue
+
+        for m in df["Matricola"]:
+            rows.append({
+                "matricola": m,
+                "appello_id": a["id"]
+            })
+    print(f"Caricate {len(rows)} righe di matricole da {len(appelli)} appelli")
+    print(f"Matricole uniche: {len(set(r['matricola'] for r in rows))}")
+    return pd.DataFrame(rows)
+    
 
 def carica_tutti_i_voti():
     appelli = session.get("appelli", [])
@@ -202,7 +225,10 @@ def dashboard():
     graph_media_globale = None
     graph_esiti = None
     graph_distribuzione_voti = None
+    graph_genere = None
+    graph_ripetizioni = None
 
+    
 
     if appelli:
         df = carica_tutti_i_voti()
@@ -215,6 +241,12 @@ def dashboard():
             graph_esiti = grafico_esiti(df)
             #graph_distribuzione_voti = grafico_distribuzione_voti(df)
             graph_genere = grafico_genere_per_appello(df)
+            #graph_ripetizioni=grafico_ripetizioni(carica_ripetizioni())
+            import json
+            graph_ripetizioni = grafico_ripetizioni(carica_ripetizioni())
+            parsed = json.loads(graph_ripetizioni)
+            print("KEYS:", parsed.keys())
+            print("DATA:", parsed.get("data"))
 
 
     return render_template(
@@ -226,7 +258,8 @@ def dashboard():
         #graph_media_solo=graph_media_solo,
         graph_media_globale=graph_media_globale,
         graph_esiti=graph_esiti,
-        graph_genere=graph_genere
+        graph_genere=graph_genere,
+        graph_ripetizioni=graph_ripetizioni
     )
 # ---------------- STATISTICHE GLOBALI ----------------
 @app.route("/statistiche_globali")
@@ -240,8 +273,14 @@ def statistiche_globali():
     graph_distribuzione_voti = None
 
 
+    selected_stats = ["ripetizioni", "genere", "voti", "boxplot", "media", "esiti"]
+    selected_appelli = [a["id"] for a in appelli]
+
+
     if appelli:
         df = carica_tutti_i_voti()
+        df = df[df["appello_id"].isin(selected_appelli)]
+
         if not df.empty:
             #graph_media = grafico_distribuzione_voti(df)
             graph_distribuzione_voti = grafico_distribuzione_voti(df)
@@ -251,6 +290,7 @@ def statistiche_globali():
             graph_esiti = grafico_esiti(df)
             graph_cumulativa = grafico_distribuzione_cumulativa(df)
             graph_genere = grafico_genere_per_appello(df)
+            graph_ripetizioni = grafico_ripetizioni(carica_ripetizioni())
 
 
     return render_template(
@@ -263,7 +303,8 @@ def statistiche_globali():
         graph_media_globale=graph_media_globale,
         graph_esiti=graph_esiti,
         graph_cumulativa=graph_cumulativa,
-        graph_genere=graph_genere
+        graph_genere=graph_genere,
+        graph_ripetizioni=graph_ripetizioni
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------
@@ -330,13 +371,15 @@ def dettaglio_appello(appello_id):
     grafico_distribuzione = grafico_distribuzione_appello(df, appello_id)
     grafico_boxplot = grafico_boxplot_appello(df, appello_id)
     grafico_media = grafico_media_appello(df, appello_id)
+    grafico_genere = grafico_genere_uno(df, appello_id)
 
     return render_template(
         "dettaglio_appello.html",
         appello={"header": header},
         grafico_distribuzione=grafico_distribuzione,
         grafico_boxplot=grafico_boxplot,
-        grafico_media=grafico_media
+        grafico_media=grafico_media,
+        grafico_genere=grafico_genere
     )
 
 if __name__ == "__main__":

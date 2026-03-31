@@ -161,6 +161,39 @@ def grafico_genere_per_appello(df):
     return fig.to_json()
 
 #GRAFICI NUOVI
+import plotly.express as px
+
+import plotly.graph_objects as go
+
+def grafico_ripetizioni(df):
+    conteggio_ripetizioni = df["matricola"].value_counts()
+    df_tentativi = conteggio_ripetizioni.value_counts().sort_index()
+
+    x = list(map(int, df_tentativi.index.tolist()))
+    y = list(map(int, df_tentativi.values.tolist()))
+
+    print("X:", x)
+    print("Y:", y)
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=x,
+                y=y,
+                marker=dict(color="#636efa")
+            )
+        ]
+    )
+
+    fig.update_layout(
+        title="Quante volte gli studenti hanno sostenuto l'esame",
+        xaxis_title="Numero di tentativi",
+        yaxis_title="Numero di studenti",
+        xaxis=dict(tickmode='linear', dtick=1)
+    )
+
+    return fig.to_json()
+
 
 
 
@@ -251,3 +284,20 @@ def grafico_media_appello(df, appello_id):
             "yaxis": {"title": "Media"}
         }
     }
+#non funziona
+def grafico_genere_uno(df, appello_id):
+    df = df[df["appello_id"] == appello_id]
+    fig = px.histogram(
+        df,
+        x="Genere",
+        color="Genere",
+        category_orders={"Genere": ["M", "F", "?"]},
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        title=f"Distribuzione maschi/femmine – Appello {appello_id}"
+    )
+    fig.update_layout(
+        xaxis_title="Genere",
+        yaxis_title="Numero studenti",
+        showlegend=False
+    )
+    return fig.to_json()
