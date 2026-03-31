@@ -14,29 +14,27 @@
 <body>
 <div class="container mt-4">
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
-    <form method="POST" action="/dashboard">
-        <div id="menu-temi" class="mb-3">
-            <h5>Seleziona statistiche</h5>
-            <label><input type="checkbox" class="tema-check" value="ripetizioni" checked> Ripetizioni</label>
-            <label><input type="checkbox" class="tema-check" value="genere" checked> Genere</label>
-            <label><input type="checkbox" class="tema-check" value="voti" checked> Voti</label>
-            <label><input type="checkbox" class="tema-check" value="boxplot" checked> Boxplot</label>
-            <label><input type="checkbox" class="tema-check" value="media" checked> Media</label>
-            <label><input type="checkbox" class="tema-check" value="esiti" checked> Esiti</label>
-        </div>
-        <!-- Aggiungi altri checkbox per altre statistiche -->
-        <h5 class="mt-3">Appelli da includere</h5>
+    <form method="POST" action="/statistiche_globali">
+        <h5>Statistiche</h5>
+        <label><input type="checkbox" name="stats" value="ripetizioni" checked> Ripetizioni</label>
+        <label><input type="checkbox" name="stats" value="genere" checked> Genere</label>
+        <label><input type="checkbox" name="stats" value="voti" checked> Voti</label>
+        <label><input type="checkbox" name="stats" value="boxplot"> Boxplot</label>
+        <label><input type="checkbox" name="stats" value="media"> Media</label>
+        <label><input type="checkbox" name="stats" value="esiti"> Esiti</label>
+
+        <h5 class="mt-3">Appelli</h5>
         {% for a in appelli %}
             <label>
-                <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
-                {{ a.header.data }} – {{ a.header.attivita }}
+            <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
+            {{ a.header.data }} – {{ a.header.attivita }}
             </label><br>
         {% endfor %}
 
-        <button class="btn btn-primary mt-3">Aggiorna grafici</button>
+        <button type="submit" class="btn btn-primary mt-3">Aggiorna grafici</button>
     </form>
+
     <h5>Tutti i grafici</h5>
-    {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
         <div>
             <div id="g-boxplot" data-theme="boxplot"></div>
             <div id="g-media" data-theme="media"></div>
@@ -48,11 +46,23 @@
                         
                         
                         
-                        
-                        
+             <script>
+                console.log("DEBUG: Inizio rendering grafici");
 
+                console.log("graph_box:", {{ graph_box | tojson }});
+                console.log("graph_media_globale:", {{ graph_media_globale | tojson }});
+                console.log("graph_esiti:", {{ graph_esiti | tojson }});
+                console.log("graph_distribuzione_voti:", {{ graph_distribuzione_voti | tojson }});
+                console.log("graph_genere:", {{ graph_genere | tojson }});
+                console.log("graph_ripetizioni:", {{ graph_ripetizioni | tojson }});
+                console.log("graph_cumulativa:", {{ graph_cumulativa | tojson }});
 
+                console.log("DIV trovati:", document.querySelectorAll("[data-theme]"));
+                console.log("Checkbox temi:", document.querySelectorAll(".tema-check"));
+                </script>
+           
             <script>
+                
                 Plotly.newPlot('g-boxplot', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
                 //Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
                 Plotly.newPlot('g-media', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
@@ -63,7 +73,7 @@
                 Plotly.newPlot('g-ripetizioni', {{ graph_ripetizioni | safe }}.data, {{ graph_ripetizioni | safe }}.layout);
                 Plotly.newPlot('g-cumulativa', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
 
-                
+
             </script>
             <script>
             document.querySelectorAll(".tema-check").forEach(check => {
@@ -77,9 +87,7 @@
                     });
                 });
             });
-            </script>
-
-        {% endif %}            
+            </script>         
         </div>
     
 

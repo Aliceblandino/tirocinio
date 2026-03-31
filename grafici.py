@@ -160,20 +160,12 @@ def grafico_genere_per_appello(df):
 
     return fig.to_json()
 
-#GRAFICI NUOVI
-import plotly.express as px
-
-import plotly.graph_objects as go
-
 def grafico_ripetizioni(df):
     conteggio_ripetizioni = df["matricola"].value_counts()
     df_tentativi = conteggio_ripetizioni.value_counts().sort_index()
 
     x = list(map(int, df_tentativi.index.tolist()))
     y = list(map(int, df_tentativi.values.tolist()))
-
-    print("X:", x)
-    print("Y:", y)
 
     fig = go.Figure(
         data=[
@@ -194,7 +186,7 @@ def grafico_ripetizioni(df):
 
     return fig.to_json()
 
-
+#GRAFICI NUOVI
 
 
 
