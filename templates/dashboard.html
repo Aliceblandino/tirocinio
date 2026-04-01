@@ -36,7 +36,7 @@
                                     {{ appello.header.attivita }}
                                 </h5>
                                 <!-- ICONA ANIMATA -->
-                                <i class="bi bi-trash trash-icon delete-action" data-id="{{ loop.index }}"></i>
+                                <i class="bi bi-trash trash-icon delete-action" data-id="{{ appello.id }}"></i>
                             </div>
                             <p id="data-appello-{{ loop.index }}"><b>Data appello:</b> {{ appello.header.data_appello }}</p>
                             <p id="tipo-prova-{{ loop.index }}"><b>Tipo di prova:</b> {{ appello.header.tipo_prova }}</p>
@@ -46,6 +46,12 @@
                             data-href="{{ url_for('dettaglio_appello', appello_id=appello.id) }}">
                             Visualizza grafico voti
                             </a>
+                            <form id="form-delete-{{ appello.id }}" 
+                                action="{{ url_for('delete_appello', appello_id=appello.id) }}" 
+                                method="POST" 
+                                style="display:none;">
+                            </form>
+
                         </div>
                     </div>
                 {% endfor %}

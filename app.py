@@ -426,21 +426,47 @@ def grafici_appello(appello_id):
 # ---------------- ELIMINAZIONE APPELLO ----------------
 @app.route("/delete_appello/<appello_id>", methods=["POST"])
 def delete_appello(appello_id):
+    print("DEBUG delete_appello: appello_id URL =", appello_id)
+
     appelli = session.get("appelli", [])
+    print("DEBUG prima, appelli in sessione:", appelli)
 
-    # filtra via l'appello da eliminare
-    appelli = [a for a in appelli if a["id"] != appello_id]
+    # trova l'appello da eliminare (confronto sempre come stringa)
+    appello_da_eliminare = next(
+        (a for a in appelli if str(a.get("id")) == str(appello_id)),
+        None
+    )
 
-    session["appelli"] = appelli
+    if not appello_da_eliminare:
+        print("DEBUG: appello non trovato in sessione")
+        flash("Appello non trovato")
+        return redirect(url_for("dashboard"))
 
-    # opzionale: aggiorna appello corrente
-    if appelli:
-        session["appello_corrente"] = appelli[-1]
+    # elimina file fisico se esiste
+    filepath = appello_da_eliminare.get("filepath")
+    print("DEBUG: filepath da eliminare:", filepath)
+
+    if filepath and os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+            print("DEBUG: file eliminato")
+        except Exception as e:
+            print("Errore eliminazione file:", e)
+
+    # ricostruisci lista appelli senza quello eliminato
+    appelli_filtrati = [a for a in appelli if str(a.get("id")) != str(appello_id)]
+    print("DEBUG dopo, appelli filtrati:", appelli_filtrati)
+
+    session["appelli"] = appelli_filtrati
+    session.modified = True  # forza il salvataggio della sessione
+
+    # aggiorna appello corrente
+    if appelli_filtrati:
+        session["appello_corrente"] = appelli_filtrati[-1]
     else:
         session.pop("appello_corrente", None)
 
-    flash("Appello eliminato")
-
+    flash("Appello eliminato correttamente")
     return redirect(url_for("dashboard"))
 
 from flask import render_template, session, abort

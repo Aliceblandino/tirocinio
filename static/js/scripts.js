@@ -8,14 +8,11 @@ document.addEventListener("DOMContentLoaded", () => {
             icon.addEventListener('click', (e) => {
                 icon.classList.add('open');
                 const card = icon.closest('.card');
-                if(confirm('Sei sicuro di voler eliminare questo appello?')){
                     card.style.transition = "0.4s";
                     card.style.opacity = "0";
                     card.style.transform = "scale(0.95)";
                     setTimeout(()=>card.remove(), 400);
-                } else {
                     icon.classList.remove('open');
-                }
             });
         });
 
@@ -39,4 +36,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 //GRAFICI DETTAGLIO APPELLO
 
+
+    //cancella appello
+    document.querySelectorAll(".delete-action").forEach(icon => {
+    icon.addEventListener("click", () => {
+        const id = icon.getAttribute("data-id");
+        const form = document.getElementById(`form-delete-${id}`);
+
+        if (form) {
+            if (confirm("Sei sicuro di voler eliminare questo appello?")) {
+                form.submit();
+            }
+        } else {
+            console.error("Form di eliminazione non trovata per id", id);
+        }
+    });
+});
 });
