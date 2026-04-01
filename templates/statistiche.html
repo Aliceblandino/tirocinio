@@ -16,12 +16,12 @@
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
     <form method="POST" action="/statistiche_globali">
         <h5>Statistiche</h5>
-        <label><input type="checkbox" name="stats" value="ripetizioni" checked> Ripetizioni</label>
-        <label><input type="checkbox" name="stats" value="genere" checked> Genere</label>
-        <label><input type="checkbox" name="stats" value="voti" checked> Voti</label>
-        <label><input type="checkbox" name="stats" value="boxplot"> Boxplot</label>
-        <label><input type="checkbox" name="stats" value="media"> Media</label>
-        <label><input type="checkbox" name="stats" value="esiti"> Esiti</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="ripetizioni" checked> Ripetizioni</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="genere" checked> Genere</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="voti" checked> Voti</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="boxplot"checked> Boxplot</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="media"checked> Media</label>
+        <label><input type="checkbox" class="tema-check" name="stats" value="esiti"checked> Esiti</label>
 
         <h5 class="mt-3">Appelli</h5>
         {% for a in appelli %}
@@ -46,9 +46,8 @@
                         
                         
                         
-             <script>
+            <script>
                 console.log("DEBUG: Inizio rendering grafici");
-
                 console.log("graph_box:", {{ graph_box | tojson }});
                 console.log("graph_media_globale:", {{ graph_media_globale | tojson }});
                 console.log("graph_esiti:", {{ graph_esiti | tojson }});
@@ -56,13 +55,11 @@
                 console.log("graph_genere:", {{ graph_genere | tojson }});
                 console.log("graph_ripetizioni:", {{ graph_ripetizioni | tojson }});
                 console.log("graph_cumulativa:", {{ graph_cumulativa | tojson }});
-
                 console.log("DIV trovati:", document.querySelectorAll("[data-theme]"));
                 console.log("Checkbox temi:", document.querySelectorAll(".tema-check"));
-                </script>
-           
+            </script> 
+
             <script>
-                
                 Plotly.newPlot('g-boxplot', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
                 //Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
                 Plotly.newPlot('g-media', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
@@ -75,6 +72,7 @@
 
 
             </script>
+
             <script>
             document.querySelectorAll(".tema-check").forEach(check => {
                 check.addEventListener("change", () => {
