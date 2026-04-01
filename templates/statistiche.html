@@ -9,93 +9,220 @@
 
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <style>
+        .grafico {
+            min-height: 350px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        .card label {
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
 <div class="container mt-4">
+
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
-    <form method="POST" action="/statistiche_globali">
-        <h5>Statistiche</h5>
-        <label><input type="checkbox" class="tema-check" name="stats" value="ripetizioni" checked> Ripetizioni</label>
-        <label><input type="checkbox" class="tema-check" name="stats" value="genere" checked> Genere</label>
-        <label><input type="checkbox" class="tema-check" name="stats" value="voti" checked> Voti</label>
-        <label><input type="checkbox" class="tema-check" name="stats" value="boxplot"checked> Boxplot</label>
-        <label><input type="checkbox" class="tema-check" name="stats" value="media"checked> Media</label>
-        <label><input type="checkbox" class="tema-check" name="stats" value="esiti"checked> Esiti</label>
 
-        <h5 class="mt-3">Appelli</h5>
-        {% for a in appelli %}
-            <label>
-            <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
-            {{ a.header.data }} – {{ a.header.attivita }}
-            </label><br>
-        {% endfor %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-4">← Torna alla dashboard</a>
 
-        <button type="submit" class="btn btn-primary mt-3">Aggiorna grafici</button>
-    </form>
+    <!-- ============================
+         CARD FILTRI
+         ============================ -->
+    <div class="card p-3 mb-4 shadow-sm">
 
-    <h5>Tutti i grafici</h5>
-        <div>
-            <div id="g-boxplot" data-theme="boxplot"></div>
-            <div id="g-media" data-theme="media"></div>
-            <div id="g-esiti" data-theme="esiti"></div>
-            <div id="g-dvoti" data-theme="voti"></div>
-            <div id="g-genere" data-theme="genere"></div>
-            <div id="g-ripetizioni" data-theme="ripetizioni"></div>
-            <div id="g-cumulativa" data-theme="cumulativa"></div>
-                        
-                        
-                        
-            <script>
-                console.log("DEBUG: Inizio rendering grafici");
-                console.log("graph_box:", {{ graph_box | tojson }});
-                console.log("graph_media_globale:", {{ graph_media_globale | tojson }});
-                console.log("graph_esiti:", {{ graph_esiti | tojson }});
-                console.log("graph_distribuzione_voti:", {{ graph_distribuzione_voti | tojson }});
-                console.log("graph_genere:", {{ graph_genere | tojson }});
-                console.log("graph_ripetizioni:", {{ graph_ripetizioni | tojson }});
-                console.log("graph_cumulativa:", {{ graph_cumulativa | tojson }});
-                console.log("DIV trovati:", document.querySelectorAll("[data-theme]"));
-                console.log("Checkbox temi:", document.querySelectorAll(".tema-check"));
-            </script> 
+        <h5 class="mb-3">Statistiche</h5>
 
-            <script>
-                Plotly.newPlot('g-boxplot', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
-                //Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
-                Plotly.newPlot('g-media', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
-                Plotly.newPlot('g-esiti', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
-                Plotly.newPlot('g-dvoti', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
-                Plotly.newPlot('g-cumulativa', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
-                Plotly.newPlot('g-genere', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
-                Plotly.newPlot('g-ripetizioni', {{ graph_ripetizioni | safe }}.data, {{ graph_ripetizioni | safe }}.layout);
-                Plotly.newPlot('g-cumulativa', {{ graph_cumulativa | safe }}.data, {{ graph_cumulativa | safe }}.layout);
+        <div class="row">
+            <div class="col-md-6">
+                <label><input type="checkbox" class="tema-check" name="stats" value="ripetizioni" checked> Ripetizioni</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="genere" checked> Genere</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="voti" checked> Voti</label><br>
+            </div>
 
-
-            </script>
-
-            <script>
-            document.querySelectorAll(".tema-check").forEach(check => {
-                check.addEventListener("change", () => {
-                    const selected = Array.from(document.querySelectorAll(".tema-check:checked"))
-                                        .map(c => c.value);
-
-                    document.querySelectorAll("[data-theme]").forEach(div => {
-                        const theme = div.getAttribute("data-theme");
-                        div.style.display = selected.includes(theme) ? "block" : "none";
-                    });
-                });
-            });
-            </script>         
+            <div class="col-md-6">
+                <label><input type="checkbox" class="tema-check" name="stats" value="boxplot" checked> Boxplot</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="media" checked> Media</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="esiti" checked> Esiti</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="cumulativa" checked> Cumulativa</label><br>
+            </div>
         </div>
-    
 
-    <!-- TORNA ALLA DASHBOARD -->
+        <h5 class="mt-4">Appelli</h5>
+
+        <div class="row">
+            {% for a in appelli %}
+            <div class="col-md-6">
+                <label>
+                    <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
+                    {{ a.header.data }} – {{ a.header.attivita }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- MESSAGGIO SE NESSUN APPELLO -->
+    <div id="no-appelli" class="alert alert-warning mt-3" style="display:none;">
+        Nessun appello selezionato. Seleziona almeno un appello per visualizzare le statistiche.
+    </div>
+
+    <!-- ============================
+         GRIGLIA GRAFICI
+         ============================ -->
+    <h5 class="mt-4">Tutti i grafici</h5>
+
+    <div class="row g-4 mt-3">
+
+        <div class="col-md-6">
+            <div id="g-boxplot" class="grafico" data-theme="boxplot"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-media" class="grafico" data-theme="media"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-esiti" class="grafico" data-theme="esiti"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-dvoti" class="grafico" data-theme="voti"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-genere" class="grafico" data-theme="genere"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-ripetizioni" class="grafico" data-theme="ripetizioni"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-cumulativa" class="grafico" data-theme="cumulativa"></div>
+        </div>
+
+    </div>
+
     <a href="{{ url_for('dashboard') }}"
-       class="btn btn-secondary w-100 mb-4">
+       class="btn btn-secondary w-100 mb-4 mt-4">
        Torna alla dashboard
     </a>
 
 </div>
-<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+
+<!-- ============================
+     SCRIPT AJAX + NORMALIZZAZIONE
+     ============================ -->
+<script>
+// Raccoglie i filtri selezionati
+function getSelectedFilters() {
+    const stats = Array.from(document.querySelectorAll("input[name='stats']:checked"))
+                       .map(c => c.value);
+
+    const appelli = Array.from(document.querySelectorAll("input[name='appelli']:checked"))
+                         .map(c => c.value);
+
+    return { stats, appelli };
+}
+
+// Cancella un grafico
+function clearPlot(id) {
+    Plotly.purge(id);
+    document.getElementById(id).innerHTML = "";
+}
+
+// Normalizza il formato del grafico
+function normalizzaGrafico(raw) {
+    if (!raw) return null;
+    if (typeof raw === "object") return raw;
+    if (typeof raw === "string") {
+        try { return JSON.parse(raw); }
+        catch (e) { return null; }
+    }
+    return null;
+}
+
+// Funzione principale AJAX
+function aggiornaGrafici() {
+    const filters = getSelectedFilters();
+
+    // Se nessun appello selezionato → mostra messaggio e svuota grafici
+    if (filters.appelli.length === 0) {
+        document.getElementById("no-appelli").style.display = "block";
+
+        ["g-boxplot","g-media","g-esiti","g-dvoti","g-genere","g-ripetizioni","g-cumulativa"]
+            .forEach(clearPlot);
+
+        return;
+    } else {
+        document.getElementById("no-appelli").style.display = "none";
+    }
+
+    fetch("/statistiche_globali_ajax", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filters)
+    })
+    .then(r => r.json())
+    .then(data => {
+
+        const mapping = {
+            "boxplot": "g-boxplot",
+            "media": "g-media",
+            "esiti": "g-esiti",
+            "voti": "g-dvoti",
+            "genere": "g-genere",
+            "ripetizioni": "g-ripetizioni",
+            "cumulativa": "g-cumulativa"
+        };
+
+        for (const key in mapping) {
+            const divId = mapping[key];
+            const obj = normalizzaGrafico(data[key]);
+
+            if (obj && obj.data && obj.layout) {
+                Plotly.newPlot(divId, obj.data, obj.layout);
+            } else {
+                clearPlot(divId);
+            }
+        }
+
+        aggiornaVisibilitaTemi();
+    });
+}
+
+// Mostra/nasconde grafici
+function aggiornaVisibilitaTemi() {
+    const selected = Array.from(document.querySelectorAll(".tema-check:checked"))
+                          .map(c => c.value);
+
+    document.querySelectorAll("[data-theme]").forEach(div => {
+        const theme = div.getAttribute("data-theme");
+        const col = div.closest(".col-md-6");  // la colonna Bootstrap
+
+        if (selected.includes(theme)) {
+            col.style.display = "block";
+        } else {
+            col.style.display = "none";
+        }
+    });
+}
+
+
+// Eventi
+document.querySelectorAll("input[name='stats'], input[name='appelli']")
+        .forEach(cb => cb.addEventListener("change", aggiornaGrafici));
+
+window.addEventListener("load", aggiornaVisibilitaTemi);
+window.addEventListener("load", aggiornaGrafici);
+</script>
+
 </body>
 </html>

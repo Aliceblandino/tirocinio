@@ -259,6 +259,73 @@ def dashboard():
         graph_ripetizioni=graph_ripetizioni
     )
 # ---------------- STATISTICHE GLOBALI ----------------
+@app.route("/statistiche_globali_ajax", methods=["POST"])
+def statistiche_globali_ajax():
+    print("\n===== AJAX DEBUG =====")
+    print("POST JSON:", request.json)
+
+    selected_stats = request.json.get("stats", [])
+    selected_appelli = request.json.get("appelli", [])
+
+    print("Selected stats:", selected_stats)
+    print("Selected appelli:", selected_appelli)
+
+    selected_appelli = [str(a) for a in selected_appelli]
+
+    appelli = session.get("appelli", [])
+    df = carica_tutti_i_voti()
+    df["appello_id"] = df["appello_id"].astype(str)
+    df = df[df["appello_id"].isin(selected_appelli)]
+
+    print("DF filtrato appelli:", df["appello_id"].unique())
+    print("DF rows:", len(df))
+    print(df.head())
+
+    results = {}
+
+    if "voti" in selected_stats:
+        print("Genero grafico: voti")
+        results["voti"] = grafico_distribuzione_voti(df)
+    else:
+        print("NON genero voti")
+
+    if "boxplot" in selected_stats:
+        print("Genero grafico: boxplot")
+        results["boxplot"] = grafico_boxplot_per_appello(df)
+    else:
+        print("NON genero boxplot")
+
+    if "media" in selected_stats:
+        print("Genero grafico: media")
+        results["media"] = grafico_media_globale(df)
+    else:
+        print("NON genero media")
+
+    if "esiti" in selected_stats:
+        print("Genero grafico: esiti + cumulativa")
+        results["esiti"] = grafico_esiti(df)
+        results["cumulativa"] = grafico_distribuzione_cumulativa(df)
+    else:
+        print("NON genero esiti")
+
+    if "genere" in selected_stats:
+        print("Genero grafico: genere")
+        results["genere"] = grafico_genere_per_appello(df)
+    else:
+        print("NON genero genere")
+
+    if "ripetizioni" in selected_stats:
+        print("Genero grafico: ripetizioni")
+        df_rip = carica_ripetizioni(selected_appelli)
+        print("Ripetizioni rows:", len(df_rip))
+        results["ripetizioni"] = grafico_ripetizioni(df_rip)
+    else:
+        print("NON genero ripetizioni")
+
+    print("RISULTATI AJAX:", results.keys())
+    print("=====================\n")
+
+    return results
 
 @app.route("/statistiche_globali", methods=["GET", "POST"])
 def statistiche_globali():
