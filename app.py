@@ -404,7 +404,7 @@ def statistiche_globali():
 def grafici_appello(appello_id):
     appelli = session.get("appelli", [])
     appello = next((a for a in appelli if a["id"] == appello_id), None)
-
+    
     if not appello:
         flash("Appello non trovato")
         return redirect(url_for("dashboard"))
@@ -412,7 +412,7 @@ def grafici_appello(appello_id):
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
     parsed = parse_appello(filepath)
     df1 = parsed["df1"]
-
+    print("COLONNE DF APPPELLO:", df1.columns.tolist())
     if "Esito" not in df1.columns:
         flash("Il file non contiene la colonna 'Esito'.")
         return redirect(url_for("dashboard"))

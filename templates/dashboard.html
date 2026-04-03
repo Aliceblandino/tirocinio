@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<head>
     <meta charset="UTF-8">
     <title>Dashboard Statistiche Esami</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
@@ -16,41 +15,39 @@
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
-</head>
 <body>
 <div class="container mt-4">
-    <h2>Dashboard Statistiche Esami</h2>
+    <h2 class="mb-4">Dashboard Statistiche Esami</h2>
 
-    <div class="row mt-4">
+    <div class="row g-4">
 
-        <!-- ======================= -->
-        <!-- COLONNA APPPELLI        -->
-        <!-- ======================= -->
-        <div class="col-md-6" id="col-appelli">
+        <!-- COLONNA APPPELLI -->
+        <div class="col-lg-5 col-md-6" id="col-appelli">
+
             {% if session.appelli %}
                 {% for appello in session.appelli %}
-                    <div class="card mb-3" id="card-appello-{{ loop.index }}">
+                    <div class="card mb-3 shadow-sm">
                         <div class="card-body">
-                            <div class="card-header-custom">
-                                <h5 id="titolo-appello-{{ loop.index }}">
-                                    {{ appello.header.attivita }}
-                                </h5>
-                                <!-- ICONA ANIMATA -->
+
+                            <div class="card-header-custom mb-2 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">{{ appello.header.attivita }}</h5>
                                 <i class="bi bi-trash trash-icon delete-action" data-id="{{ appello.id }}"></i>
                             </div>
+
                             <p id="data-appello-{{ loop.index }}"><b>Data appello:</b> {{ appello.header.data_appello }}</p>
                             <p id="tipo-prova-{{ loop.index }}"><b>Tipo di prova:</b> {{ appello.header.tipo_prova }}</p>
                             <p id="totale-iscritti-{{ loop.index }}"><b>Iscritti:</b> {{ appello.header.totale_iscritti }}</p>
-                            <a href="{{ url_for('grafici_appello', appello_id=appello.id) }}" 
-                            class="btn btn-primary w-100 btn-grafico" 
+                            <a href="{{ url_for('grafici_appello', appello_id=appello.id) }}"
+                            class="btn btn-primary w-100 btn-grafico"
                             data-href="{{ url_for('dettaglio_appello', appello_id=appello.id) }}">
                             Visualizza grafico voti
                             </a>
-                            <form id="form-delete-{{ appello.id }}" 
-                                action="{{ url_for('delete_appello', appello_id=appello.id) }}" 
-                                method="POST" 
+                            <form id="form-delete-{{ appello.id }}"
+                                action="{{ url_for('delete_appello', appello_id=appello.id) }}"
+                                method="POST"
                                 style="display:none;">
                             </form>
+
 
                         </div>
                     </div>
@@ -59,80 +56,57 @@
                 <p>Nessun appello caricato</p>
             {% endif %}
 
-            <!-- UPLOAD + CLEAR -->
-            <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" class="mt-3" id="form-upload">
+            <!-- UPLOAD -->
+            <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" class="mt-3">
                 <input type="file" name="files" class="form-control mb-2" multiple required>
-                <button type="submit" class="btn btn-success w-100" id="btn-upload">Carica appello</button>
+                <button type="submit" class="btn btn-success w-100">Carica appello</button>
             </form>
 
-            <form action="{{ url_for('clear_appelli') }}" method="POST" class="mt-2" id="form-clear">
-                <button type="submit" class="btn btn-danger w-100" id="btn-clear">Cancella tutti gli appelli</button>
+            <!-- CLEAR -->
+            <form action="{{ url_for('clear_appelli') }}" method="POST" class="mt-2">
+                <button type="submit" class="btn btn-danger w-100">Cancella tutti gli appelli</button>
             </form>
+
         </div>
 
-        <!-- ======================= -->
         <!-- COLONNA STATISTICHE GLOBALI -->
-        <!-- ======================= -->
-        <div class="col-md-6" id="col-statistiche-globali">
-            <div class="card mb-3" id="card-statistiche-globali">
+        <div class="col-lg-7 col-md-6" id="col-statistiche-globali">
+            <div class="card shadow-sm" id="card-statistiche-globali">
                 <div class="card-body text-center">
-                    <h5 class="card-title" id="titolo-statistiche-globali">Statistiche globali</h5>
-                    <p class="text-muted" id="descrizione-statistiche-globali">
-                        Analisi aggregate su tutti gli appelli caricati
-                    </p>
-                    <!-- GRAFICO BOX PLOT -->
 
-                    <!-- GRAFICO MEDIA -->
-    {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
-                    <div>
-                        <!-- <h5>Boxplot</h5> -->
-                        <div id="g0"></div>
+                    <h5 class="card-title">Statistiche globali</h5>
+                    <p class="text-muted">Analisi aggregate su tutti gli appelli caricati</p>
 
-                        <!-- <h5>Media voti (solo valutati)</h5> -->
-                        <!-- <div id="g1"></div> -->
+                    {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
 
-                        <!-- <h5>Media voti (globale)</h5> -->
-                        <div id="g2"></div>
-
-                        <!-- <h5>Distribuzione esiti</h5> -->
-                        <div id="g3"></div>
-                        <!-- <h5>Distribuzione voti (solo sufficienti)</h5> -->
-                        <div id="g4"></div>
-                        <div id="g5"></div>
-                        <div id="g6"></div>
+                        <div class="grid-4-grafici">
+                            <div class="plot-box"><div id="g0"></div></div>
+                            <div class="plot-box"><div id="g2"></div></div>
+                            <div class="plot-box"><div id="g3"></div></div>
+                            <div class="plot-box"><div id="g4"></div></div>
+                        </div>
 
                         <script>
-                        Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
-                        //Plotly.newPlot('g1', {{ graph_media_solo | safe }}.data, {{ graph_media_solo | safe }}.layout);
-                        Plotly.newPlot('g2', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
-                        //Plotly.newPlot('g3', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
-                        const g3 = {{ graph_esiti | safe }};
-                        Plotly.newPlot('g3', g3.data, g3.layout);
-
-                        Plotly.newPlot('g4', {{ graph_distribuzione_voti | safe }}.data, {{ graph_distribuzione_voti | safe }}.layout);
-                        Plotly.newPlot('g5', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
-                        //Plotly.newPlot('g6', {{ graph_ripetizioni | safe }}.data, {{ graph_ripetizioni | safe }}.layout);
-                        const g6 = JSON.parse({{ graph_ripetizioni | tojson }});
-                        Plotly.newPlot('g6', g6.data, g6.layout);
+                            Plotly.newPlot('g0', {{ graph_box | safe }}.data, {{ graph_box | safe }}.layout);
+                            Plotly.newPlot('g2', {{ graph_media_globale | safe }}.data, {{ graph_media_globale | safe }}.layout);
+                            Plotly.newPlot('g3', {{ graph_esiti | safe }}.data, {{ graph_esiti | safe }}.layout);
+                            Plotly.newPlot('g4', {{ graph_genere | safe }}.data, {{ graph_genere | safe }}.layout);
 
                         </script>
-                    {% endif %}
-                    </div>
-                    
 
-                    <!-- VIEW MORE -->
-                    <a href="{{ url_for('statistiche_globali') }}"
-                       class="btn btn-secondary w-100" id="btn-view-more">
-                       View more
-                    </a>
+                    {% endif %}
+
+                    <div id="view-more-wrapper">
+    <a href="{{ url_for('statistiche_globali') }}" id="btn-view-more-floating">View more</a>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</div>
+
+
                 </div>
             </div>
         </div>
 
     </div>
 </div>
-
-<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-
 </body>
 </html>

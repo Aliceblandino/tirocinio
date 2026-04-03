@@ -94,9 +94,97 @@
 }
 
 
-
-
+/* menu singolo */
 .tag-menu label {
     margin-right: 10px;
     cursor: pointer;
 }
+/* bottone view more della dashboard */
+
+#view-more-wrapper {
+    position: fixed;
+    bottom: 15px;
+    right: 15px;
+    width: 180px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#btn-view-more-floating {
+    background-color: #28a745;
+    color: white;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    transition: 0.2s ease-in-out;
+    text-decoration: none;
+}
+
+#btn-view-more-floating:hover {
+    transform: scale(1.05);
+}
+
+#btn-view-more-floating:hover {
+    transform: scale(1.07);
+}
+
+
+/* css per la griglia dashboard */
+.grid-4-grafici {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px; /* meno spazio tra i grafici */
+    margin-top: 10px;
+}
+
+.plot-box {
+    background: #fff;
+    padding: 10px; /* meno padding = più spazio per il grafico */
+    border-radius: 10px;
+    min-height: 380px; /* più altezza */
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+
+.plot-box > div {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+#col-statistiche-globali {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+#card-statistiche-globali .card-body {
+    padding: 10px 10px 90px 10px !important;
+}
+.plot-box {
+    padding: 0 !important;
+    min-height: 420px;
+}
+
+.plot-box > div {
+    width: 100% !important;
+    height: 100% !important;
+}
+.grid-4-grafici {
+    gap: 10px !important;
+    margin-top: 5px !important;
+}
+
+#col-appelli .card {
+    padding: 14px 18px !important;
+}
+
+#col-appelli .card-body {
+    padding: 12px 16px !important;
+}
+
+
+
