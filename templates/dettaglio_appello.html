@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -10,39 +9,93 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <!-- <style>
+        .media-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            font-size: 18px;
+        }
+        .tag-menu label {
+            margin-right: 12px;
+            cursor: pointer;
+        }
+    </style> -->
 </head>
 <body>
-<div class="card mt-3 fade-slide-in" id="card-dettaglio">
-    <div class="card-body">
-        <h4>{{ appello.header.attivita }}</h4>
-        <p><b>Data appello:</b> {{ appello.header.data_appello }}</p>
-        <p><b>Tipo di prova:</b> {{ appello.header.tipo_prova }}</p>
-        <p><b>Iscritti:</b> {{ appello.header.totale_iscritti }}</p>
+
+<div class="container d-flex justify-content-center mt-5">
+    <div class="card p-4 shadow-sm" style="max-width: 100%; width: 100%;">
+
+        <!-- TITOLO -->
+        <h4 class="mb-3 text-center">{{ appello.header.attivita }}</h4>
+
+        <!-- CONTENUTO + QUADRATINO MEDIA -->
+        <div class="d-flex justify-content-between align-items-center">
+
+            <!-- TESTO A SINISTRA -->
+            <div>
+                <p><b>Data appello:</b> {{ appello.header.data_appello }}</p>
+                <p><b>Tipo di prova:</b> {{ appello.header.tipo_prova }}</p>
+                <p><b>Iscritti:</b> {{ appello.header.totale_iscritti }}</p>
+            </div>
+
+            <!-- QUADRATINO MEDIA A DESTRA -->
+            <div class="d-flex align-items-center">
+                <div id="media-box" class="media-box shadow-sm"></div>
+            </div>
+
+        </div>
+
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-3">← Torna alla dashboard</a>
+
     </div>
 </div>
 
-    <!-- QUI IN FUTURO AGGIUNGEREMO I GRAFICI -->
+
+
+<!-- MENU TAG SOTTO LA CARD DI INTESTAZIONE -->
+<div class="container mt-3">
+    <div class="card p-3">
+        <h6 class="mb-2">Seleziona cosa visualizzare</h6>
+        <div class="tag-menu">
+            <label><input type="checkbox" class="grafico-toggle" value="distribuzione" checked> Distribuzione voti</label>
+            <label><input type="checkbox" class="grafico-toggle" value="boxplot" checked> Boxplot</label>
+            <label><input type="checkbox" class="grafico-toggle" value="media" checked> Media</label>
+            <label><input type="checkbox" class="grafico-toggle" value="genere" checked> Genere</label>
+        </div>
+    </div>
+</div>
+
+<!-- GRAFICI -->
 <div class="container mt-4">
     <div class="row">
 
-        <div class="col-md-6">
+        <div class="col-md-6 grafico-wrapper" data-grafico="distribuzione">
             <h5>Distribuzione voti</h5>
             <div id="grafico-distribuzione"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 grafico-wrapper" data-grafico="boxplot">
             <h5>Boxplot</h5>
             <div id="grafico-boxplot"></div>
         </div>
 
-        <div class="col-md-6 mt-4">
+        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="media">
             <h5>Media</h5>
             <div id="grafico-media"></div>
         </div>
-        <div class="col-md-6 mt-4">
+
+        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="genere">
             <h5>Genere</h5>
             <div id="grafico-genere"></div>
+        </div>
 
     </div>
 </div>
@@ -57,13 +110,73 @@
 
     const graficoMedia = {{ grafico_media | tojson }};
     Plotly.newPlot('grafico-media', graficoMedia.data, graficoMedia.layout);
-    
+
     const graficoGenere = JSON.parse({{ grafico_genere | tojson }});
     Plotly.newPlot('grafico-genere', graficoGenere.data, graficoGenere.layout);
 
+    // -------------------------
+    // QUADRATINO MEDIA INTESTAZIONE
+    // -------------------------
+function setMediaBoxFromGrafico() {
+    const box = document.getElementById("media-box");
+
+    try {
+        const ys = graficoMedia.data[0].y || [];
+
+        if (!ys.length) {
+            box.innerHTML = `
+                <span class="media-label">Media</span>
+                <span class="media-value">-</span>
+            `;
+            box.style.background = "#6c757d";
+            return;
+        }
+
+        const media = ys.reduce((a, b) => a + b, 0) / ys.length;
+
+        box.innerHTML = `
+            <span class="media-label">Media</span>
+            <span class="media-value">${media.toFixed(1)}</span>
+        `;
+
+        box.style.background = media >= 18 ? "#28a745" : "#dc3545";
+
+    } catch (e) {
+        box.innerHTML = `
+            <span class="media-label">Media</span>
+            <span class="media-value">-</span>
+        `;
+        box.style.background = "#6c757d";
+    }
+}
+
+setMediaBoxFromGrafico();
+
+
+
+
+
+    // -------------------------
+    // MENU TAG: MOSTRA/NASCONDI GRAFICI
+    // -------------------------
+    function aggiornaVisibilitaGrafici() {
+        const selezionati = Array.from(document.querySelectorAll(".grafico-toggle:checked"))
+                                 .map(c => c.value);
+
+        document.querySelectorAll(".grafico-wrapper").forEach(div => {
+            const tipo = div.getAttribute("data-grafico");
+            div.style.display = selezionati.includes(tipo) ? "block" : "none";
+        });
+    }
+
+    document.querySelectorAll(".grafico-toggle").forEach(cb => {
+        cb.addEventListener("change", aggiornaVisibilitaGrafici);
+    });
+
+    // inizializza
+    aggiornaVisibilitaGrafici();
 </script>
 
-</div>
 <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
 </html>

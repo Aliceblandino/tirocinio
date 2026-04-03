@@ -7,6 +7,7 @@ from grafici import *  # importa tutte le funzioni dai grafici
 import re
 from genderize import Genderize #problema richieste limitate
 import gender_guesser.detector as gender
+from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
@@ -31,9 +32,6 @@ def index():
             return redirect(url_for("dashboard"))
         return render_template("index.html", error="Credenziali errate")
     return render_template("index.html")
-
-from werkzeug.utils import secure_filename
-
 
 
 @app.route("/upload", methods=["POST"])

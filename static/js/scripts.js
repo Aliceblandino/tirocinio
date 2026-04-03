@@ -51,5 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Form di eliminazione non trovata per id", id);
         }
     });
+
+    
 });
 });

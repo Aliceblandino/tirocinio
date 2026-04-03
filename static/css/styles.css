@@ -64,4 +64,39 @@
     top: 0;
     z-index: 10;
 }
+/* Box per la visualizzazione della media */
+.media-box {
+    width: 70px;
+    height: 70px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    color: white;
+}
 
+/* TESTO "Media" */
+.media-label {
+    font-size: 10px;      /* <--- MODIFICA QUI */
+    font-weight: 600;     /* <--- MODIFICA QUI */
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+
+/* VALORE NUMERICO */
+.media-value {
+    font-size: 30px;      /* <--- MODIFICA QUI */
+    font-weight: 700;     /* <--- MODIFICA QUI */
+    line-height: 1;
+}
+
+
+
+
+.tag-menu label {
+    margin-right: 10px;
+    cursor: pointer;
+}
