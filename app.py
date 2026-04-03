@@ -319,6 +319,11 @@ def statistiche_globali_ajax():
         results["ripetizioni"] = grafico_ripetizioni(df_rip)
     else:
         print("NON genero ripetizioni")
+    if "previsioni" in selected_stats:
+        print("Genero grafico: previsioni")
+        results["previsioni"] = grafico_previsione(df)
+    else:
+        print("NON genero previsioni")
 
     print("RISULTATI AJAX:", results.keys())
     print("=====================\n")
@@ -347,6 +352,8 @@ def statistiche_globali():
     graph_cumulativa = None
     graph_genere = None
     graph_ripetizioni = None
+    graph_previsione=None
+    graph_previsioneiscritti=None
 
     # --- SE CI SONO APPELLI CARICATI ---
     if appelli:
@@ -383,6 +390,8 @@ def statistiche_globali():
                 # FILTRO ANCHE LE RIPETIZIONI
                 df_rip = carica_ripetizioni(selected_appelli)
                 graph_ripetizioni = grafico_ripetizioni(df_rip)
+            if "previsioni" in selected_stats:
+                graph_previsione = grafico_previsione(df)
 
     # --- RENDER TEMPLATE ---
     return render_template(
@@ -397,6 +406,7 @@ def statistiche_globali():
         graph_cumulativa=graph_cumulativa,
         graph_genere=graph_genere,
         graph_ripetizioni=graph_ripetizioni,
+        graph_previsione=graph_previsione
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------

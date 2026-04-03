@@ -43,6 +43,7 @@
                 <label><input type="checkbox" class="tema-check" name="stats" value="ripetizioni" checked> Ripetizioni</label><br>
                 <label><input type="checkbox" class="tema-check" name="stats" value="genere" checked> Genere</label><br>
                 <label><input type="checkbox" class="tema-check" name="stats" value="voti" checked> Voti</label><br>
+                <label><input type="checkbox" class="tema-check" name="stats" value="previsioni" checked> Previsione</label><br>
             </div>
 
             <div class="col-md-6">
@@ -107,6 +108,10 @@
         <div class="col-md-6">
             <div id="g-cumulativa" class="grafico" data-theme="cumulativa"></div>
         </div>
+        <div class="col-md-6">
+            <div id="g-previsioni" class="grafico" data-theme="previsioni"></div>
+        </div>
+
 
     </div>
 
@@ -180,7 +185,8 @@ function aggiornaGrafici() {
             "voti": "g-dvoti",
             "genere": "g-genere",
             "ripetizioni": "g-ripetizioni",
-            "cumulativa": "g-cumulativa"
+            "cumulativa": "g-cumulativa",
+            "previsioni": "g-previsioni"
         };
 
         for (const key in mapping) {
