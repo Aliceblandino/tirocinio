@@ -9,6 +9,8 @@
 
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
     <style>
         .grafico {
@@ -111,6 +113,11 @@
         <div class="col-md-6">
             <div id="g-previsioni" class="grafico" data-theme="previsioni"></div>
         </div>
+            
+
+    </div>
+</div>
+
 
 
     </div>
@@ -189,16 +196,42 @@ function aggiornaGrafici() {
             "previsioni": "g-previsioni"
         };
 
-        for (const key in mapping) {
-            const divId = mapping[key];
-            const obj = normalizzaGrafico(data[key]);
+    for (const key in mapping) {
+        const divId = mapping[key];
+        const obj = normalizzaGrafico(data[key]);
 
-            if (obj && obj.data && obj.layout) {
-                Plotly.newPlot(divId, obj.data, obj.layout);
-            } else {
-                clearPlot(divId);
+        if (obj && obj.data && obj.layout) {
+            Plotly.newPlot(divId, obj.data, obj.layout);
+            document.getElementById(divId).onclick = () => apriZoom(divId, obj);
+
+            // ============================
+            // SLIDER SOLO PER PREVISIONI
+            // ============================
+            if (key === "previsioni") {
+                const slider = document.getElementById("slider-previsioni");
+
+                if (slider) {
+                    slider.oninput = () => {
+                        const anni = parseInt(slider.value);
+
+                        // Copia layout originale
+                        let newLayout = JSON.parse(JSON.stringify(obj.layout));
+
+                        // Aggiorna titolo
+                        newLayout.title = `Previsione voti (orizzonte: ${anni} anni)`;
+
+                        // Aggiorna range asse X
+                        newLayout.xaxis.range = [0, anni];
+
+                        Plotly.newPlot(divId, obj.data, newLayout);
+                    };
+                }
             }
+
+        } else {
+            clearPlot(divId);
         }
+    }
 
         aggiornaVisibilitaTemi();
     });
@@ -229,6 +262,23 @@ document.querySelectorAll("input[name='stats'], input[name='appelli']")
 window.addEventListener("load", aggiornaVisibilitaTemi);
 window.addEventListener("load", aggiornaGrafici);
 </script>
+<div id="zoom-modal" class="zoom-modal" style="display:none;">
+    <div class="zoom-content">
+        <span id="zoom-close">&times;</span>
 
+        <div id="zoom-plot"></div>
+
+        <!-- SLIDER SOLO PER PREVISIONI -->
+        <div id="zoom-slider-wrapper" style="display:none; margin-top: 15px;">
+            <label id="zoom-slider-label" class="form-label">Numero appelli previsti:</label>
+            <input type="range" id="zoom-slider-previsioni" min="1" max="10" value="3" class="form-range">
+        </div>
+
+        <div id="zoom-description" class="mt-3"></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
+
 </html>

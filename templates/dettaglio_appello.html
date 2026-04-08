@@ -69,6 +69,7 @@
             <label><input type="checkbox" class="grafico-toggle" value="boxplot" checked> Boxplot</label>
             <label><input type="checkbox" class="grafico-toggle" value="media" checked> Media</label>
             <label><input type="checkbox" class="grafico-toggle" value="genere" checked> Genere</label>
+            <label><input type="checkbox" class="grafico-toggle" value="esiti" checked> Esiti</label>
         </div>
     </div>
 </div>
@@ -96,6 +97,12 @@
             <h5>Genere</h5>
             <div id="grafico-genere"></div>
         </div>
+        
+        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="esiti">
+            <h5>Esiti</h5>
+            <div id="grafico-esiti"></div>
+        </div>
+
 
     </div>
 </div>
@@ -113,6 +120,9 @@
 
     const graficoGenere = JSON.parse({{ grafico_genere | tojson }});
     Plotly.newPlot('grafico-genere', graficoGenere.data, graficoGenere.layout);
+
+    const graficoEsiti = JSON.parse({{ grafico_esiti | tojson }});
+    Plotly.newPlot('grafico-esiti', graficoEsiti.data, graficoEsiti.layout);
 
     
 

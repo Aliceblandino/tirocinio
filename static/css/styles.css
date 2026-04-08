@@ -186,5 +186,105 @@
     padding: 12px 16px !important;
 }
 
+/* zoom miniature */
+.zoom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
 
+.zoom-content {
+    position: relative;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 1000px;
+    max-height: 90%;
+    overflow-y: auto;
+}
 
+/* SPAZIO PER LA X */
+.zoom-content {
+    padding-top: 50px; /* spazio per la X */
+}
+
+/* LA X */
+#zoom-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    z-index: 10000; /* sopra tutto */
+}
+
+/* GRAFICO ZOOMATO */
+#zoom-plot {
+    height: 500px !important;  /* altezza fissa */
+}
+
+/* Contenitore grafico */
+.grafico {
+    position: relative;
+    width: 100%;
+    height: 380px; /* altezza fissa e uniforme */
+    overflow: hidden; /* impedisce al grafico di uscire */
+    padding: 10px;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+/* Plotly deve adattarsi */
+.grafico .plot-container,
+.grafico .svg-container {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Forza il grafico a stare dentro */
+.grafico .main-svg {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Stile per lo slider */
+.grafico input[type="range"] {
+    width: 100%;
+    margin-bottom: 10px;
+}
+#zoom-slider-previsioni {
+    width: 100%;
+    margin-bottom: 15px;
+}
+/* stile modale */
+.zoom-content {
+    padding-top: 70px !important; /* spazio per slider + X */
+}
+
+#zoom-slider-previsioni {
+    width: 60%;          /* più piccolo */
+    margin: 0 auto;      /* centrato */
+    display: block;
+    margin-bottom: 10px;
+}
+
+#zoom-slider-wrapper {
+    text-align: center;
+}
+
+#zoom-slider-previsioni {
+    width: 40%;
+    margin: 0 auto;
+    display: block;
+}

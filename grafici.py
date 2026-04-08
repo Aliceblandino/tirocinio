@@ -535,28 +535,31 @@ def grafico_boxplot_appello(df, appello_id):
             "title": "Distribuzione statistica voti"
         }
     }
+#esiti appello (1)
 def grafico_esiti_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
-    serie = df["voto"]
-    voti_num = pd.to_numeric(serie, errors="coerce")
+    # Usiamo direttamente la colonna "tipo"
+    conteggi = df["tipo"].value_counts()
 
-    assenti = (serie == "ASS").sum()
-    ritirati = (serie == "RIT").sum()
-    promossi = (voti_num >= 18).sum()
-    bocciati = (voti_num < 18).sum()
+    labels = ["promosso", "bocciato", "assente", "ritirato"]
+    values = [int(conteggi.get(l, 0)) for l in labels]
 
-    return {
-        "data": [{
-            "x": ["Promossi", "Bocciati", "Ritirati", "Assenti"],
-            "y": [promossi, bocciati, ritirati, assenti],
-            "type": "bar",
-            "marker": {"color": "orange"}
-        }],
-        "layout": {
-            "title": "Esiti appello"
-        }
-    }
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=["Promossi", "Bocciati", "Assenti", "Ritirati"],
+        y=values,
+        marker_color="orange"
+    ))
+
+    fig.update_layout(
+        title=f"Esiti appello {appello_id}",
+        xaxis_title="Esito",
+        yaxis_title="Numero studenti"
+    )
+
+    return fig.to_json()
+
 def grafico_media_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
@@ -595,56 +598,7 @@ def grafico_genere_uno(df, appello_id):
     )
     return fig.to_json()
 
-#lienar regression voto medio futuro
-
-
-def grafico_previsione(df):
-    if df.empty or "voto" not in df.columns:
-        return {"data": [], "layout": {"title": "Previsione media voti prossimo appello"}}
-
-    df["voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
-    df_validi = df.dropna(subset=["voto_num"])
-
-    df_media = df_validi.groupby("appello_id")["voto_num"].mean().reset_index()
-
-    if len(df_media) < 2:
-        return {"data": [], "layout": {"title": "Dati insufficienti per una previsione"}}
-
-    X = np.arange(len(df_media)).reshape(-1, 1)
-    y = df_media["voto_num"].values
-
-    model = LinearRegression()
-    model.fit(X, y)
-
-    previsione = model.predict(np.array([[len(df_media)]]))[0]
-
-    return {
-        "data": [
-            {
-                "x": df_media["appello_id"].tolist(),
-                "y": df_media["voto_num"].tolist(),
-                "type": "scatter",
-                "mode": "lines+markers",
-                "marker": {"color": "orange"},
-                "name": "Storico"
-            },
-            {
-                "x": ["Prossimo appello"],
-                "y": [previsione],
-                "type": "scatter",
-                "mode": "markers",
-                "marker": {"size": 14, "color": "red"},
-                "name": "Previsione"
-            }
-        ],
-        "layout": {
-            "title": "Previsione media voti prossimo appello",
-            "xaxis": {"title": "Appello"},
-            "yaxis": {"title": "Media voto"},
-            "margin": {"t": 50, "b": 100}
-        }
-    }
-
+#da finire
 def previsione_iscritti(df):
     # df deve contenere: appello_id, totale_iscritti
     df = df.copy()
@@ -673,3 +627,119 @@ def previsione_iscritti(df):
     prev = model.predict(next_x)[0]
 
     return max(0, int(prev))  # niente numeri negativi
+
+
+#lienar regression voto medio futuro
+def grafico_previsione(df):
+    # Controlli base
+    if df.empty or "voto" not in df.columns or "data_appello" not in df.columns:
+        return {
+            "data": [],
+            "layout": {"title": "Previsione media voti"},
+            "max_anni": 1,
+            "default_anni": 1
+        }
+
+    # Conversioni
+    df["voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
+    df["data_appello"] = pd.to_datetime(df["data_appello"], errors="coerce")
+    df_validi = df.dropna(subset=["voto_num", "data_appello"])
+
+    # Media per appello
+    df_media = df_validi.groupby(["appello_id", "data_appello"])["voto_num"].mean().reset_index()
+    df_media = df_media.sort_values("data_appello")
+
+    n_appelli = len(df_media)
+    if n_appelli < 2:
+        return {
+            "data": [],
+            "layout": {"title": "Dati insufficienti per una previsione"},
+            "max_anni": 1,
+            "default_anni": 1
+        }
+
+    # Asse X = giorni dal primo appello
+    df_media["giorni"] = (df_media["data_appello"] - df_media["data_appello"].min()).dt.days
+    X = df_media["giorni"].values.reshape(-1, 1)
+    y = df_media["voto_num"].values
+
+    # Distanza media tra appelli (minimo 30 giorni)
+    distanze = df_media["data_appello"].diff().dt.days.dropna()
+    media_distanza = max(30, int(distanze.mean()))
+
+    # Numero previsioni future = numero appelli storici
+    n_future = n_appelli
+
+    # 🔥 PREVISIONE ITERATIVA
+    future_pred = []
+    future_dates = []
+
+    current_X = X.copy()
+    current_y = y.copy()
+    last_date = df_media["data_appello"].max()
+
+    for i in range(n_future):
+        # Regressione aggiornata
+        model = LinearRegression()
+        model.fit(current_X, current_y)
+
+        # Prossima data
+        next_date = last_date + pd.Timedelta(days=media_distanza)
+        last_date = next_date
+        future_dates.append(next_date)
+
+        # Converti in giorni
+        next_day = (next_date - df_media["data_appello"].min()).days
+
+        # Predizione
+        next_pred = model.predict([[next_day]])[0]
+
+        # Limiti realistici
+        next_pred = float(np.clip(next_pred, 18, 31))
+
+        # Salva
+        future_pred.append(next_pred)
+
+        # Aggiorna dataset per la prossima iterazione
+        current_X = np.append(current_X, [[next_day]], axis=0)
+        current_y = np.append(current_y, next_pred)
+
+    # Dati grafico
+    storico_x = df_media["data_appello"].dt.strftime("%d/%m/%Y").tolist()
+    storico_y = df_media["voto_num"].tolist()
+
+    previsioni_x = [d.strftime("%d/%m/%Y") for d in future_dates]
+    previsioni_y = future_pred
+
+    data = [
+        {
+            "x": storico_x,
+            "y": storico_y,
+            "type": "scatter",
+            "mode": "lines+markers",
+            "marker": {"color": "orange"},
+            "name": "Storico"
+        },
+        {
+            "x": previsioni_x,
+            "y": previsioni_y,
+            "type": "scatter",
+            "mode": "lines+markers",
+            "marker": {"color": "red"},
+            "name": "Previsioni"
+        }
+    ]
+
+    layout = {
+        "title": "Previsione media voti",
+        "xaxis": {"title": "Data appello"},
+        "yaxis": {"title": "Media voto", "range": [0, 31]},
+        "margin": {"t": 50, "b": 100}
+    }
+
+    return {
+        "data": data,
+        "layout": layout,
+        "max_anni": n_future,
+        "default_anni": min(3, n_future)
+    }

@@ -39,19 +39,23 @@ def upload():
     files = request.files.getlist("files")
     if not files:
         return "Nessun file caricato", 400
+
     if "appelli" not in session:
         session["appelli"] = []
 
     for file in files:
         if file.filename == "":
             continue
+
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
         file.save(filepath)
+
         try:
             appello = parse_appello(filepath)
         except Exception as e:
             print("Errore parsing:", e)
-            continue  # salta file problematici
+            continue
+
         session["appelli"].append({
             "filename": file.filename,
             "filepath": filepath,
@@ -59,6 +63,14 @@ def upload():
             "header": appello["header"],
             "meta": appello["meta"]
         })
+
+    # 👉 ORDINAMENTO QUI, DOPO AVER AGGIUNTO TUTTI GLI APPELLI
+    try:
+        session["appelli"].sort(
+            key=lambda a: pd.to_datetime(a["header"]["data_appello"], dayfirst=True)
+        )
+    except Exception as e:
+        print("Errore ordinamento appelli:", e)
 
     # salva ultimo come corrente
     if session["appelli"]:
@@ -192,7 +204,8 @@ def carica_tutti_i_voti():
                 "tipo": tipo,
                 "appello_id": a["id"],
                 "materia": a["header"]["attivita"],
-                "nome_raw": nome_raw
+                "nome_raw": nome_raw,
+                "data_appello": a["header"]["data_appello"]
             })
 
     df_all = pd.DataFrame(tutti_voti)
@@ -500,6 +513,7 @@ def dettaglio_appello(appello_id):
     grafico_boxplot = grafico_boxplot_appello(df, appello_id)
     grafico_media = grafico_media_appello(df, appello_id)
     grafico_genere = grafico_genere_uno(df, appello_id)
+    grafico_esiti=grafico_esiti_appello(df, appello_id)
 
     return render_template(
         "dettaglio_appello.html",
@@ -507,7 +521,8 @@ def dettaglio_appello(appello_id):
         grafico_distribuzione=grafico_distribuzione,
         grafico_boxplot=grafico_boxplot,
         grafico_media=grafico_media,
-        grafico_genere=grafico_genere
+        grafico_genere=grafico_genere,
+        grafico_esiti=grafico_esiti
     )
 
 if __name__ == "__main__":
