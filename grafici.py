@@ -497,7 +497,8 @@ def grafico_ripetizioni(df):
 
 
 
-#--Grafici singoli
+#--Grafici singoli 
+# Distribuzione voti(1)
 def grafico_distribuzione_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
@@ -519,6 +520,7 @@ def grafico_distribuzione_appello(df, appello_id):
             "yaxis": {"title": "Numero studenti"}
         }
     }
+#boxplot (2)
 def grafico_boxplot_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
@@ -535,7 +537,7 @@ def grafico_boxplot_appello(df, appello_id):
             "title": "Distribuzione statistica voti"
         }
     }
-#esiti appello (1)
+#esiti appello (5)
 def grafico_esiti_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
@@ -559,7 +561,7 @@ def grafico_esiti_appello(df, appello_id):
     )
 
     return fig.to_json()
-
+#media appello(3) TODO: da togliere
 def grafico_media_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
 
@@ -580,7 +582,7 @@ def grafico_media_appello(df, appello_id):
             "yaxis": {"title": "Media"}
         }
     }
-#non funziona
+#grafico maschi/femmine per appello (4)
 def grafico_genere_uno(df, appello_id):
     df = df[df["appello_id"] == appello_id]
     fig = px.histogram(
@@ -598,6 +600,257 @@ def grafico_genere_uno(df, appello_id):
     )
     return fig.to_json()
 
+
+#statistiche miste(0)
+def statistiche_appello(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+
+    # Converti voto in numerico (30L → 31)
+    voti = pd.to_numeric(df["voto"].replace("30L", 31), errors="coerce")
+
+    # Tieni solo i voti validi
+    voti_validi = voti.dropna()
+
+    if voti_validi.empty:
+        return {
+            "media": None,
+            "mediana": None,
+            "moda": None,
+            "deviazione_std": None,
+            "minimo": None,
+            "massimo": None,
+            "varianza": None,
+            "difficoltà": None
+        }
+
+    media = voti_validi.mean()
+    mediana = voti_validi.median()
+
+    # Moda può avere più valori → prendiamo il primo
+    try:
+        moda = voti_validi.mode().iloc[0]
+    except:
+        moda = None
+
+    deviazione_std = voti_validi.std()
+    minimo = voti_validi.min()
+    massimo = voti_validi.max()
+    vatrianza = voti_validi.var()
+    difficoltà = (1 - (voti_validi >= 18).mean())*100  # % di bocciati
+
+    return {
+        "media": round(media, 2),
+        "mediana": round(mediana, 2),
+        "moda": int(moda) if moda is not None else None,
+        "deviazione_std": round(deviazione_std, 2),
+        "minimo": int(minimo),
+        "massimo": int(massimo),
+        "varianza": round(vatrianza, 2),
+        "difficoltà": round(difficoltà, 2)
+    }
+#radarchart (6)
+def grafico_statistiche_radar(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+
+    voti = pd.to_numeric(df["voto"].replace("30L", 31), errors="coerce")
+    voti_validi = voti.dropna()
+
+    if voti_validi.empty:
+        return go.Figure().to_json()
+
+    mediana = voti_validi.median()
+    moda = voti_validi.mode().iloc[0]
+    dev_std = voti_validi.std()
+    #varianza = voti_validi.var()
+    media= voti_validi.mean()
+    minimo = voti_validi.min()
+    massimo = voti_validi.max()
+
+    categorie = ["Mediana", "Moda", "Dev.Std", "Media", "Minimo", "Massimo"]
+    valori = [mediana, moda, dev_std, media, minimo, massimo]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatterpolar(
+        r=valori,
+        theta=categorie,
+        fill='toself',
+        name=f"Appello {appello_id}",
+        line_color="orange"
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 31])
+        ),
+        showlegend=False,
+        title=f"Statistiche Appello {appello_id}"
+    )
+
+    return fig.to_json()
+
+
+#grafici comuni
+#non è comune e non funziona davvero
+
+
+def heatmap_voti(df):
+    print("\n=== HEATMAP GLOBALI ===")
+    print("DF rows:", len(df))
+    print("COLONNE:", df.columns)
+
+    df = df.copy()
+
+    # Normalizza voti
+    df["voto"] = df["voto"].astype(str).str.strip().str.upper()
+    df["voto"] = df["voto"].replace({"30L": "31"})
+
+    # Converti in numerico
+    df["Voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
+
+    # Tieni solo voti validi
+    df_validi = df[df["Voto_num"].notna()]
+
+    print("VOTI NUMERICI:")
+    print(df_validi[["appello_id", "voto", "Voto_num"]].head(20))
+
+    if df_validi.empty:
+        fig = go.Figure()
+        fig.update_layout(title="Nessun voto numerico disponibile")
+        return fig.to_dict()
+
+    # Pivot: righe = appelli, colonne = voti
+    df_pivot = (
+        df_validi.groupby(["appello_id", "Voto_num"])
+        .size()
+        .reset_index(name="Conteggio")
+        .pivot(index="appello_id", columns="Voto_num", values="Conteggio")
+        .fillna(0)
+    )
+
+    print("PIVOT:")
+    print(df_pivot)
+
+    df_pivot.columns = df_pivot.columns.astype(str)
+
+    z_vals = df_pivot.values.tolist()
+    x_vals = df_pivot.columns.tolist()
+    y_vals = df_pivot.index.tolist()
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z_vals,
+            x=x_vals,
+            y=y_vals,
+            colorscale="YlGnBu",
+            colorbar=dict(title="N° studenti"),
+            hovertemplate="Appello: %{y}<br>Voto: %{x}<br>Conteggio: %{z}<extra></extra>",
+        )
+    )
+
+    # 🔥 FORZA LA VISUALIZZAZIONE DEL TESTO (parte fondamentale)
+    fig.update_traces(
+        xgap=0, ygap=0,
+        text=z_vals,
+        texttemplate="%{text}",
+        textfont=dict(size=10, color="black")
+    )
+
+    fig.update_layout(
+        title="Distribuzione voti per appello",
+        xaxis_title="Voto",
+        yaxis_title="Appello"
+    )
+
+    return fig.to_dict()
+
+
+def grafico_ratio_esiti(df):
+    print("\n=== RADAR RATIO ESITI ===")
+    print("DF rows:", len(df))
+    print("COLONNE:", df.columns)
+
+    df = df.copy()
+
+    # Normalizza tipo esito (FIX: usare .str.lower())
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+
+    # Mappatura coerente
+    df["Esito"] = df["tipo"].replace({
+        "promosso": "Promossi",
+        "bocciato": "Bocciati",
+        "assente": "Assenti",
+        "ritirato": "Ritirati"
+    })
+
+    categorie = ["Promossi", "Bocciati", "Assenti", "Ritirati"]
+
+    # Conteggio per appello e categoria
+    df_count = (
+        df.groupby(["appello_id", "Esito"])
+        .size()
+        .reset_index(name="Conteggio")
+    )
+
+    # Totale per appello
+    totali = df.groupby("appello_id").size().rename("Totale")
+    df_count = df_count.merge(totali, on="appello_id")
+
+    # Ratio (0–1)
+    df_count["Ratio"] = (df_count["Conteggio"] / df_count["Totale"]).round(3)
+
+    # Pivot
+    df_pivot = (
+        df_count.pivot(index="appello_id", columns="Esito", values="Ratio")
+        .reindex(columns=categorie)
+        .fillna(0)   # 🔥 fondamentale: niente NaN
+    )
+
+    print("PIVOT RADAR (pulito):")
+    print(df_pivot)
+
+    fig = go.Figure()
+
+    # Un tracciato radar per ogni appello
+    for appello in df_pivot.index:
+        valori = df_pivot.loc[appello].tolist()
+
+        # 🔥 chiusura del poligono
+        valori.append(valori[0])
+        categorie_chiuse = categorie + [categorie[0]]
+
+        fig.add_trace(go.Scatterpolar(
+            r=valori,
+            theta=categorie_chiuse,
+            fill='toself',
+            name=str(appello),
+            opacity=0.6
+        ))
+
+    fig.update_layout(
+        title="Radar ratio esiti per appello",
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 1]
+            )
+        ),
+        showlegend=True,
+        height=500
+    )
+
+    return fig.to_dict()
+
+
+
+
+
+
+
+
+
+
+#PREVISIONI GLOBALI
 #da finire
 def previsione_iscritti(df):
     # df deve contenere: appello_id, totale_iscritti
@@ -743,3 +996,118 @@ def grafico_previsione(df):
         "max_anni": n_future,
         "default_anni": min(3, n_future)
     }
+
+
+##PREVISONI
+import numpy as np
+import plotly.graph_objects as go
+
+# ============================
+#  TUO MODELLO ENSEMBLE
+# ============================
+
+def mean_model(y):
+    return np.mean(y)
+
+def regression_model(x, y):
+    b, a = np.polyfit(x, y, 1)
+    next_x = len(x) + 1
+    return a + b * next_x
+
+def last_value_model(y):
+    return y[-1]
+
+def get_weights(n):
+    if n <= 3:
+        return 0.5, 0.2, 0.3   # media, regressione, ultimo valore
+    elif n <= 10:
+        return 0.3, 0.5, 0.2
+    else:
+        return 0.2, 0.7, 0.1
+
+def ensemble_predict(y):
+    n = len(y)
+    x = np.arange(1, n + 1)
+
+    m = mean_model(y)
+    r = regression_model(x, y)
+    l = last_value_model(y)
+
+    w_m, w_r, w_l = get_weights(n)
+
+    prediction = (w_m * m) + (w_r * r) + (w_l * l)
+    return prediction
+
+def forecast_iterativo(data, n_finale):
+    serie = data.copy()
+
+    while len(serie) < n_finale:
+        next_val = ensemble_predict(serie)
+        serie.append(next_val)
+
+    return serie
+
+# ============================
+#  GRAFICO PER IL DASHBOARD
+# ============================
+
+def grafico_previsioni_iscritti(df, n_future=5):
+    print("\n=== PREVISIONI ISCRITTI (ENSEMBLE) ===")
+
+    df = df.copy()
+
+    # Assicuriamoci che la data sia datetime
+    df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True)
+
+    # Conta iscritti per appello
+    df_count = (
+        df.groupby(["appello_id", "data_appello"])
+        .size()
+        .reset_index(name="Iscritti")
+        .sort_values("data_appello")
+    )
+
+    # Serie storica
+    serie_storica = df_count["Iscritti"].tolist()
+    n_storico = len(serie_storica)
+
+    # Numero totale punti finali
+    n_finale = n_storico + n_future
+
+    # Previsione iterativa
+    serie_prevista = forecast_iterativo(serie_storica.copy(), n_finale)
+
+    # Costruzione asse X
+    date_storiche = df_count["data_appello"].tolist()
+    ultima_data = date_storiche[-1]
+
+    future_dates = [ultima_data + pd.Timedelta(days=30 * (i+1)) for i in range(n_future)]
+
+    # Grafico
+    fig = go.Figure()
+
+    # Storico
+    fig.add_trace(go.Scatter(
+        x=date_storiche,
+        y=serie_storica,
+        mode="lines+markers",
+        name="Storico iscritti"
+    ))
+
+    # Previsioni
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=serie_prevista[-n_future:],
+        mode="lines+markers",
+        name="Previsione iscritti",
+        line=dict(dash="dash")
+    ))
+
+    fig.update_layout(
+        title=f"Previsione iscritti (orizzonte: {n_future} appelli)",
+        xaxis_title="Data appello",
+        yaxis_title="Numero iscritti",
+        height=500
+    )
+
+    return fig.to_dict()

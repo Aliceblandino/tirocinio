@@ -235,7 +235,7 @@ def dashboard():
     graph_distribuzione_voti = None
     graph_genere = None
     graph_ripetizioni = None
-
+    graph_ratio=None
     
 
     if appelli:
@@ -255,6 +255,7 @@ def dashboard():
             parsed = json.loads(graph_ripetizioni)
             print("KEYS:", parsed.keys())
             print("DATA:", parsed.get("data"))
+            graph_ratio = grafico_ratio_esiti(df)
 
 
     return render_template(
@@ -267,7 +268,8 @@ def dashboard():
         graph_media_globale=graph_media_globale,
         graph_esiti=graph_esiti,
         graph_genere=graph_genere,
-        graph_ripetizioni=graph_ripetizioni
+        graph_ripetizioni=graph_ripetizioni,
+        graph_ratio=graph_ratio
     )
 # ---------------- STATISTICHE GLOBALI ----------------
 @app.route("/statistiche_globali_ajax", methods=["POST"])
@@ -316,6 +318,7 @@ def statistiche_globali_ajax():
         print("Genero grafico: esiti + cumulativa")
         results["esiti"] = grafico_esiti(df)
         results["cumulativa"] = grafico_distribuzione_cumulativa(df)
+        results["ratio"] = grafico_ratio_esiti(df)
     else:
         print("NON genero esiti")
 
@@ -337,6 +340,10 @@ def statistiche_globali_ajax():
         results["previsioni"] = grafico_previsione(df)
     else:
         print("NON genero previsioni")
+
+    if "heatmap" in selected_stats:
+        print("Genero grafico: heatmap")
+        results["heatmap"] = heatmap_voti(df)
 
     print("RISULTATI AJAX:", results.keys())
     print("=====================\n")
@@ -367,6 +374,9 @@ def statistiche_globali():
     graph_ripetizioni = None
     graph_previsione=None
     graph_previsioneiscritti=None
+    graph_heatmap=None
+    graph_ratio=None
+    
 
     # --- SE CI SONO APPELLI CARICATI ---
     if appelli:
@@ -395,6 +405,7 @@ def statistiche_globali():
             if "esiti" in selected_stats:
                 graph_esiti = grafico_esiti(df)
                 graph_cumulativa = grafico_distribuzione_cumulativa(df)
+                graph_ratio= grafico_ratio_esiti(df)
 
             if "genere" in selected_stats:
                 graph_genere = grafico_genere_per_appello(df)
@@ -403,8 +414,15 @@ def statistiche_globali():
                 # FILTRO ANCHE LE RIPETIZIONI
                 df_rip = carica_ripetizioni(selected_appelli)
                 graph_ripetizioni = grafico_ripetizioni(df_rip)
+            
+            if "heatmap" in selected_stats:
+                graph_heatmap = heatmap_voti(df)
+
             if "previsioni" in selected_stats:
                 graph_previsione = grafico_previsione(df)
+        
+            
+
 
     # --- RENDER TEMPLATE ---
     return render_template(
@@ -419,7 +437,10 @@ def statistiche_globali():
         graph_cumulativa=graph_cumulativa,
         graph_genere=graph_genere,
         graph_ripetizioni=graph_ripetizioni,
-        graph_previsione=graph_previsione
+        graph_previsione=graph_previsione,
+        graph_heatmap=graph_heatmap,
+        graph_ratio=graph_ratio
+        
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------
@@ -514,6 +535,9 @@ def dettaglio_appello(appello_id):
     grafico_media = grafico_media_appello(df, appello_id)
     grafico_genere = grafico_genere_uno(df, appello_id)
     grafico_esiti=grafico_esiti_appello(df, appello_id)
+    grafico_radar=grafico_statistiche_radar(df, appello_id)
+    
+    stats = statistiche_appello(df, appello_id)
 
     return render_template(
         "dettaglio_appello.html",
@@ -522,7 +546,10 @@ def dettaglio_appello(appello_id):
         grafico_boxplot=grafico_boxplot,
         grafico_media=grafico_media,
         grafico_genere=grafico_genere,
-        grafico_esiti=grafico_esiti
+        grafico_esiti=grafico_esiti,
+        grafico_radar=grafico_radar,
+       
+        stats=stats
     )
 
 if __name__ == "__main__":

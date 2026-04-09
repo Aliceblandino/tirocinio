@@ -70,11 +70,64 @@
             <label><input type="checkbox" class="grafico-toggle" value="media" checked> Media</label>
             <label><input type="checkbox" class="grafico-toggle" value="genere" checked> Genere</label>
             <label><input type="checkbox" class="grafico-toggle" value="esiti" checked> Esiti</label>
-        </div>
+           <label><input type="checkbox" class="grafico-toggle" value="radar" checked> Statistiche Radar</label> 
+          
     </div>
 </div>
 
 <!-- GRAFICI -->
+<div class="container mt-4">
+    <div class="row text-center">
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>📊 Difficoltà</h6>
+                <p class="stat-value">{{ stats.difficoltà }}%</p>
+            </div>
+        </div>
+
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>🔔 Mediana</h6>
+                <p class="stat-value">{{ stats.mediana }}</p>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>⭐ Moda</h6>
+                <p class="stat-value">{{ stats.moda }}</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row text-center mt-3">
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>📉 Minimo</h6>
+                <p class="stat-value">{{ stats.minimo }}</p>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>📈 Massimo</h6>
+                <p class="stat-value">{{ stats.massimo }}</p>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card shadow-sm p-3">
+                <h6>📐 Dev.Std</h6>
+                <p class="stat-value">{{ stats.deviazione_std }}</p>
+            </div>
+        </div>
+
+    </div>
+</div>
 <div class="container mt-4">
     <div class="row">
 
@@ -102,6 +155,13 @@
             <h5>Esiti</h5>
             <div id="grafico-esiti"></div>
         </div>
+        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="radar">
+            <h5>Statistiche Radar</h5>
+            <div id="grafico-radar"></div>
+        </div>
+
+
+        
 
 
     </div>
@@ -123,6 +183,11 @@
 
     const graficoEsiti = JSON.parse({{ grafico_esiti | tojson }});
     Plotly.newPlot('grafico-esiti', graficoEsiti.data, graficoEsiti.layout);
+
+    const graficoRadar = JSON.parse({{ grafico_radar | tojson }});
+    Plotly.newPlot('grafico-radar', graficoRadar.data, graficoRadar.layout);
+
+
 
     
 
@@ -162,7 +227,7 @@ function setMediaBoxFromGrafico() {
     }
 }
 
-setMediaBoxFromGrafico();
+    setMediaBoxFromGrafico();
 
 
 
