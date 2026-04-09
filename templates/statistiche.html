@@ -122,6 +122,9 @@
         <div class="col-md-6">
             <div id="g-ratio" class="grafico" data-theme="ratio"></div>
         </div>
+        <div class="col-md-6">
+            <div id="g-piscritti" class="grafico" data-theme="previsioni"></div>
+        </div>
             
 
     </div>
@@ -189,8 +192,13 @@ function aggiornaGrafici() {
     fetch("/statistiche_globali_ajax", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filters)
+        body: JSON.stringify({
+            stats: filters.stats,
+            appelli: filters.appelli,
+            n_future: document.getElementById("slider-previsioni").value
+        })
     })
+
     .then(r => r.json())
     .then(data => {
 
@@ -204,7 +212,8 @@ function aggiornaGrafici() {
             "cumulativa": "g-cumulativa",
             "previsioni": "g-previsioni",
             "heatmap": "g-heatmap",
-            "ratio": "g-ratio"
+            "ratio": "g-ratio",
+            "previsioneiscritti": "g-piscritti"
         };
 
     for (const key in mapping) {

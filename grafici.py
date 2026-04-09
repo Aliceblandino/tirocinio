@@ -1003,7 +1003,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 # ============================
-#  TUO MODELLO ENSEMBLE
+#  MODELLO ENSEMBLE
 # ============================
 
 def mean_model(y):
@@ -1048,7 +1048,7 @@ def forecast_iterativo(data, n_finale):
     return serie
 
 # ============================
-#  GRAFICO PER IL DASHBOARD
+#  GRAFICO
 # ============================
 
 def grafico_previsioni_iscritti(df, n_future=5):

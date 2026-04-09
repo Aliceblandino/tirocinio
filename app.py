@@ -338,12 +338,17 @@ def statistiche_globali_ajax():
     if "previsioni" in selected_stats:
         print("Genero grafico: previsioni")
         results["previsioni"] = grafico_previsione(df)
+        n_future = int(request.json.get("n_future", 5))
+        results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
     else:
         print("NON genero previsioni")
 
     if "heatmap" in selected_stats:
         print("Genero grafico: heatmap")
         results["heatmap"] = heatmap_voti(df)
+    
+    n_future = int(request.json.get("n_future", 5))
+    results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
 
     print("RISULTATI AJAX:", results.keys())
     print("=====================\n")
@@ -373,9 +378,10 @@ def statistiche_globali():
     graph_genere = None
     graph_ripetizioni = None
     graph_previsione=None
-    graph_previsioneiscritti=None
+    #graph_previsioneiscritti=None
     graph_heatmap=None
     graph_ratio=None
+    graph_piscritti=None
     
 
     # --- SE CI SONO APPELLI CARICATI ---
@@ -439,7 +445,8 @@ def statistiche_globali():
         graph_ripetizioni=graph_ripetizioni,
         graph_previsione=graph_previsione,
         graph_heatmap=graph_heatmap,
-        graph_ratio=graph_ratio
+        graph_ratio=graph_ratio,
+        graph_piscritti=graph_piscritti
         
     )
 
