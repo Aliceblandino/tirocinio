@@ -695,9 +695,7 @@ def grafico_statistiche_radar(df, appello_id):
 
 
 def heatmap_voti(df):
-    print("\n=== HEATMAP GLOBALI ===")
-    print("DF rows:", len(df))
-    print("COLONNE:", df.columns)
+
 
     df = df.copy()
 
@@ -711,8 +709,6 @@ def heatmap_voti(df):
     # Tieni solo voti validi
     df_validi = df[df["Voto_num"].notna()]
 
-    print("VOTI NUMERICI:")
-    print(df_validi[["appello_id", "voto", "Voto_num"]].head(20))
 
     if df_validi.empty:
         fig = go.Figure()
@@ -727,9 +723,6 @@ def heatmap_voti(df):
         .pivot(index="appello_id", columns="Voto_num", values="Conteggio")
         .fillna(0)
     )
-
-    print("PIVOT:")
-    print(df_pivot)
 
     df_pivot.columns = df_pivot.columns.astype(str)
 
@@ -748,7 +741,7 @@ def heatmap_voti(df):
         )
     )
 
-    # 🔥 FORZA LA VISUALIZZAZIONE DEL TESTO (parte fondamentale)
+
     fig.update_traces(
         xgap=0, ygap=0,
         text=z_vals,
@@ -766,10 +759,6 @@ def heatmap_voti(df):
 
 
 def grafico_ratio_esiti(df):
-    print("\n=== RADAR RATIO ESITI ===")
-    print("DF rows:", len(df))
-    print("COLONNE:", df.columns)
-
     df = df.copy()
 
     # Normalizza tipo esito (FIX: usare .str.lower())
@@ -805,9 +794,6 @@ def grafico_ratio_esiti(df):
         .reindex(columns=categorie)
         .fillna(0)   # 🔥 fondamentale: niente NaN
     )
-
-    print("PIVOT RADAR (pulito):")
-    print(df_pivot)
 
     fig = go.Figure()
 
@@ -1107,6 +1093,205 @@ def grafico_previsioni_iscritti(df, n_future=5):
         title=f"Previsione iscritti (orizzonte: {n_future} appelli)",
         xaxis_title="Data appello",
         yaxis_title="Numero iscritti",
+        height=500
+    )
+
+    return fig.to_dict()
+
+#previsione tipologia esiti futuri
+# def grafico_esiti_appello(df, appello_id):
+#     df = df[df["appello_id"] == appello_id].copy()
+
+#     serie = df["voto"]
+#     voti_num = pd.to_numeric(serie, errors="coerce")
+
+#     assenti = (serie == "ASS").sum()
+#     ritirati = (serie == "RIT").sum()
+#     promossi = (voti_num >= 18).sum()
+#     bocciati = (voti_num < 18).sum()
+
+#     return {
+#         "data": [{
+#             "x": ["Promossi", "Bocciati", "Ritirati", "Assenti"],
+#             "y": [promossi, bocciati, ritirati, assenti],
+#             "type": "bar",
+#             "marker": {"color": "orange"}
+#         }],
+#         "layout": {
+#             "title": "Esiti appello"
+#         }
+#     }
+
+def estrai_storico_esiti(df):
+    gruppi = df.groupby("appello_id")
+
+    promossi = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") >= 18).sum()).tolist()
+    bocciati = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") < 18).sum()).tolist()
+    assenti  = gruppi.apply(lambda g: (g["voto"] == "ASS").sum()).tolist()
+    ritirati = gruppi.apply(lambda g: (g["voto"] == "RIT").sum()).tolist()
+
+    return promossi, bocciati, assenti, ritirati
+
+def probabilita_storiche_esiti(df):
+    conteggio = df["tipo"].value_counts()
+
+    tot = conteggio.sum()
+
+    p_prom = conteggio.get("promosso", 0) / tot
+    p_bocc = conteggio.get("bocciato", 0) / tot
+    p_ass  = conteggio.get("ASS", 0) / tot
+    p_rit  = conteggio.get("RIT", 0) / tot
+
+    return p_prom, p_bocc, p_ass, p_rit
+
+def stima_esiti_future_sessioni(iscritti_previsti, p_prom, p_bocc, p_ass, p_rit):
+    return {
+        "promossi": round(iscritti_previsti * p_prom),
+        "bocciati": round(iscritti_previsti * p_bocc),
+        "assenti":  round(iscritti_previsti * p_ass),
+        "ritirati": round(iscritti_previsti * p_rit)
+    }
+
+def predict_outcomes(
+    iscritti_previsti,
+    promossi,
+    bocciati,
+    assenti,
+    ritirati,
+    pesi=None,          # es: [0.2, 0.3, 0.5]
+    normalize=True,     # normalizza probabilità
+    round_values=True   # arrotonda output
+):
+    """
+    Predice promossi, bocciati, assenti e ritirati dato N iscritti.
+
+    Parameters:
+    - iscritti_previsti: int
+    - promossi, bocciati, assenti, ritirati: liste storiche
+    - pesi: lista pesi (opzionale, stessa lunghezza dei dati)
+    - normalize: forza somma probabilità = 1
+    - round_values: arrotonda risultati finali
+
+    Returns:
+    - dict con risultati
+    """
+
+    # --- STEP 1: conversione in array ---
+    promossi = np.array(promossi)
+    bocciati = np.array(bocciati)
+    assenti  = np.array(assenti)
+    ritirati = np.array(ritirati)
+
+    iscritti = promossi + bocciati + assenti + ritirati
+
+    # --- STEP 2: calcolo proporzioni ---
+    p_prom = promossi / iscritti
+    p_bocc = bocciati / iscritti
+    p_ass  = assenti  / iscritti
+    p_rit  = ritirati / iscritti
+
+    # --- STEP 3: pesi ---
+    if pesi is None:
+        pesi = np.ones(len(iscritti)) / len(iscritti)
+    else:
+        pesi = np.array(pesi)
+        pesi = pesi / np.sum(pesi)  # normalizza
+
+    # --- STEP 4: media pesata ---
+    p_prom_mean = np.sum(pesi * p_prom)
+    p_bocc_mean = np.sum(pesi * p_bocc)
+    p_ass_mean  = np.sum(pesi * p_ass)
+    p_rit_mean  = np.sum(pesi * p_rit)
+
+    # --- STEP 5: normalizzazione (sicurezza) ---
+    if normalize:
+        total = p_prom_mean + p_bocc_mean + p_ass_mean + p_rit_mean
+        p_prom_mean /= total
+        p_bocc_mean /= total
+        p_ass_mean  /= total
+        p_rit_mean  /= total
+
+    # --- STEP 6: applica a N ---
+    prom_pred = iscritti_previsti * p_prom_mean
+    bocc_pred = iscritti_previsti * p_bocc_mean
+    ass_pred  = iscritti_previsti * p_ass_mean
+    rit_pred  = iscritti_previsti * p_rit_mean
+
+    # --- STEP 7: arrotondamento ---
+    if round_values:
+        prom_pred = round(prom_pred)
+        bocc_pred = round(bocc_pred)
+        ass_pred  = round(ass_pred)
+        rit_pred  = round(rit_pred)
+
+    return {
+        "iscritti": iscritti_previsti,
+        "promossi": prom_pred,
+        "bocciati": bocc_pred,
+        "assenti": ass_pred,
+        "ritirati": rit_pred,
+        "probabilità": {
+            "promossi": p_prom_mean,
+            "bocciati": p_bocc_mean,
+            "assenti": p_ass_mean,
+            "ritirati": p_rit_mean
+        }
+    }
+
+def grafico_previsione_esiti_futuri(df, n_future=5):
+    import plotly.graph_objects as go
+
+    # --- 1) Previsione iscritti (usa il tuo ensemble) ---
+    df = df.copy()
+    print(df.head(20))
+    print(df.columns)
+    df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True)
+
+    df_count = (
+        df.groupby(["appello_id", "data_appello"])
+        .size()
+        .reset_index(name="Iscritti")
+        .sort_values("data_appello")
+    )
+
+    serie_storica = df_count["Iscritti"].tolist()
+    n_storico = len(serie_storica)
+
+    serie_prevista = forecast_iterativo(serie_storica.copy(), n_storico + n_future)
+    iscritti_futuri = serie_prevista[-n_future:]
+
+    ultima_data = df_count["data_appello"].iloc[-1]
+    future_dates = [ultima_data + pd.Timedelta(days=30*(i+1)) for i in range(n_future)]
+
+    # --- 2) Probabilità storiche globali (coerenti con grafico_esiti) ---
+    p_prom, p_bocc, p_ass, p_rit = probabilita_storiche_esiti(df)
+    print(f"Probabilità storiche - Promossi: {p_prom}, Bocciati: {p_bocc}, Assenti: {p_ass}, Ritirati: {p_rit}")
+    # --- 3) Stima esiti futuri ---
+    prom = []
+    bocc = []
+    ass  = []
+    rit  = []
+
+    for iscritti in iscritti_futuri:
+        pred = stima_esiti_future_sessioni(iscritti, p_prom, p_bocc, p_ass, p_rit)
+        prom.append(pred["promossi"])
+        bocc.append(pred["bocciati"])
+        ass.append(pred["assenti"])
+        rit.append(pred["ritirati"])
+
+    # --- 4) Grafico stacked bar ---
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(name="Promossi", x=future_dates, y=prom, marker=dict(color="green")))
+    fig.add_trace(go.Bar(name="Bocciati", x=future_dates, y=bocc, marker=dict(color="red")))
+    fig.add_trace(go.Bar(name="Assenti",  x=future_dates, y=ass,  marker=dict(color="gray")))
+    fig.add_trace(go.Bar(name="Ritirati", x=future_dates, y=rit,  marker=dict(color="orange")))
+
+    fig.update_layout(
+        barmode="stack",
+        title=f"Previsione esiti futuri (orizzonte: {n_future} appelli)",
+        xaxis_title="Data appello",
+        yaxis_title="Numero studenti",
         height=500
     )
 
