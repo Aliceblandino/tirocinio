@@ -1127,20 +1127,31 @@ def estrai_storico_esiti(df):
 
     promossi = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") >= 18).sum()).tolist()
     bocciati = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") < 18).sum()).tolist()
-    assenti  = gruppi.apply(lambda g: (g["voto"] == "ASS").sum()).tolist()
-    ritirati = gruppi.apply(lambda g: (g["voto"] == "RIT").sum()).tolist()
+    assenti  = gruppi.apply(lambda g: (g["tipo"] == "assente").sum()).tolist()
+    ritirati = gruppi.apply(lambda g: (g["tipo"] == "ritirato").sum()).tolist()
+
+    print("\n=== DEBUG: Storico esiti ===")
+    print("Promossi:", promossi)
+    print("Bocciati:", bocciati)
+    print("Assenti:", assenti)
+    print("Ritirati:", ritirati)
 
     return promossi, bocciati, assenti, ritirati
 
 def probabilita_storiche_esiti(df):
     conteggio = df["tipo"].value_counts()
 
+    print("\n=== DEBUG: Conteggio esiti globali ===")
+    print(conteggio)
+
     tot = conteggio.sum()
 
     p_prom = conteggio.get("promosso", 0) / tot
     p_bocc = conteggio.get("bocciato", 0) / tot
-    p_ass  = conteggio.get("ASS", 0) / tot
-    p_rit  = conteggio.get("RIT", 0) / tot
+    p_ass  = conteggio.get("assente", 0) / tot
+    p_rit  = conteggio.get("ritirato", 0) / tot
+
+    print(f"Probabilità storiche - Promossi: {p_prom}, Bocciati: {p_bocc}, Assenti: {p_ass}, Ritirati: {p_rit}")
 
     return p_prom, p_bocc, p_ass, p_rit
 
@@ -1241,12 +1252,36 @@ def predict_outcomes(
 def grafico_previsione_esiti_futuri(df, n_future=5):
     import plotly.graph_objects as go
 
-    # --- 1) Previsione iscritti (usa il tuo ensemble) ---
-    df = df.copy()
+    print("\n=== PREVISIONE ESITI FUTURI (CONFRONTO STORICO + FUTURO) ===")
     print(df.head(20))
-    print(df.columns)
+    print("Colonne:", df.columns)
+    print("Tipi unici:", df["tipo"].unique())
+
+    df = df.copy()
     df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True)
 
+    # ============================================================
+    # 1) ESITI STORICI PER OGNI APPELLO
+    # ============================================================
+    gruppi = df.groupby("data_appello")
+
+    storico_prom = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") >= 18).sum()).tolist()
+    storico_bocc = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") < 18).sum()).tolist()
+    storico_ass  = gruppi.apply(lambda g: (g["tipo"] == "assente").sum()).tolist()
+    storico_rit  = gruppi.apply(lambda g: (g["tipo"] == "ritirato").sum()).tolist()
+
+    date_storiche = sorted(df["data_appello"].unique())
+
+    print("\n=== DEBUG: Esiti storici ===")
+    print("Date storiche:", date_storiche)
+    print("Promossi storici:", storico_prom)
+    print("Bocciati storici:", storico_bocc)
+    print("Assenti storici:", storico_ass)
+    print("Ritirati storici:", storico_rit)
+
+    # ============================================================
+    # 2) PREVISIONE ISCRITTI FUTURI (ENSEMBLE)
+    # ============================================================
     df_count = (
         df.groupby(["appello_id", "data_appello"])
         .size()
@@ -1255,44 +1290,65 @@ def grafico_previsione_esiti_futuri(df, n_future=5):
     )
 
     serie_storica = df_count["Iscritti"].tolist()
-    n_storico = len(serie_storica)
-
-    serie_prevista = forecast_iterativo(serie_storica.copy(), n_storico + n_future)
+    serie_prevista = forecast_iterativo(serie_storica.copy(), len(serie_storica) + n_future)
     iscritti_futuri = serie_prevista[-n_future:]
+
+    print("\nIscritti futuri previsti:", iscritti_futuri)
 
     ultima_data = df_count["data_appello"].iloc[-1]
     future_dates = [ultima_data + pd.Timedelta(days=30*(i+1)) for i in range(n_future)]
 
-    # --- 2) Probabilità storiche globali (coerenti con grafico_esiti) ---
+    print("Date future:", future_dates)
+
+    # ============================================================
+    # 3) PROBABILITÀ STORICHE GLOBALI
+    # ============================================================
     p_prom, p_bocc, p_ass, p_rit = probabilita_storiche_esiti(df)
-    print(f"Probabilità storiche - Promossi: {p_prom}, Bocciati: {p_bocc}, Assenti: {p_ass}, Ritirati: {p_rit}")
-    # --- 3) Stima esiti futuri ---
-    prom = []
-    bocc = []
-    ass  = []
-    rit  = []
+
+    # ============================================================
+    # 4) STIMA ESITI FUTURI
+    # ============================================================
+    fut_prom = []
+    fut_bocc = []
+    fut_ass  = []
+    fut_rit  = []
 
     for iscritti in iscritti_futuri:
         pred = stima_esiti_future_sessioni(iscritti, p_prom, p_bocc, p_ass, p_rit)
-        prom.append(pred["promossi"])
-        bocc.append(pred["bocciati"])
-        ass.append(pred["assenti"])
-        rit.append(pred["ritirati"])
+        fut_prom.append(pred["promossi"])
+        fut_bocc.append(pred["bocciati"])
+        fut_ass.append(pred["assenti"])
+        fut_rit.append(pred["ritirati"])
 
-    # --- 4) Grafico stacked bar ---
+    print("\n=== DEBUG: Previsioni esiti futuri ===")
+    print("Promossi futuri:", fut_prom)
+    print("Bocciati futuri:", fut_bocc)
+    print("Assenti futuri:", fut_ass)
+    print("Ritirati futuri:", fut_rit)
+
+    # ============================================================
+    # 5) GRAFICO STACKED BAR (STORICO + FUTURO)
+    # ============================================================
     fig = go.Figure()
 
-    fig.add_trace(go.Bar(name="Promossi", x=future_dates, y=prom, marker=dict(color="green")))
-    fig.add_trace(go.Bar(name="Bocciati", x=future_dates, y=bocc, marker=dict(color="red")))
-    fig.add_trace(go.Bar(name="Assenti",  x=future_dates, y=ass,  marker=dict(color="gray")))
-    fig.add_trace(go.Bar(name="Ritirati", x=future_dates, y=rit,  marker=dict(color="orange")))
+    # --- STORICO ---
+    fig.add_trace(go.Bar(name="Promossi (storico)", x=date_storiche, y=storico_prom, marker=dict(color="green")))
+    fig.add_trace(go.Bar(name="Bocciati (storico)", x=date_storiche, y=storico_bocc, marker=dict(color="red")))
+    fig.add_trace(go.Bar(name="Assenti (storico)",  x=date_storiche, y=storico_ass,  marker=dict(color="gray")))
+    fig.add_trace(go.Bar(name="Ritirati (storico)", x=date_storiche, y=storico_rit,  marker=dict(color="orange")))
+
+    # --- FUTURO ---
+    fig.add_trace(go.Bar(name="Promossi (previsti)", x=future_dates, y=fut_prom, marker=dict(color="lightgreen"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Bocciati (previsti)", x=future_dates, y=fut_bocc, marker=dict(color="lightcoral"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Assenti (previsti)",  x=future_dates, y=fut_ass,  marker=dict(color="lightgray"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Ritirati (previsti)", x=future_dates, y=fut_rit,  marker=dict(color="moccasin"), opacity=0.6))
 
     fig.update_layout(
         barmode="stack",
-        title=f"Previsione esiti futuri (orizzonte: {n_future} appelli)",
-        xaxis_title="Data appello",
+        title="Confronto esiti: storico vs futuro previsto",
+        xaxis_title="Appelli",
         yaxis_title="Numero studenti",
-        height=500
+        height=600
     )
 
     return fig.to_dict()
