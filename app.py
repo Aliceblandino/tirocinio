@@ -292,8 +292,42 @@ def statistiche_globali_ajax():
 
     print("DF filtrato appelli:", df["appello_id"].unique())
     print("DF rows:", len(df))
+    print("DF columns:",len(df))
+    print("DF columns:", df.columns.tolist())
     print(df.head())
+        # =========================
+    # CALCOLO MEDIE STORICHE
+    # =========================
+    df_media = (
+        df[df["tipo"] == "promosso"]
+        .groupby("appello_id")["voto"]
+        .apply(lambda x: pd.to_numeric(x, errors="coerce").mean())
+        .reset_index(name="media")
+    )
 
+    medie_storiche = df_media["media"].tolist()
+    # ===== PREPARA PROMOSSI E ISCRITTI =====
+    promossi, bocciati, assenti, ritirati = estrai_storico_esiti(df)
+
+    iscritti = [
+        p + b + a + r
+        for p, b, a, r in zip(promossi, bocciati, assenti, ritirati)
+    ]
+
+    # ===== PREVISIONE MEDIE =====
+    # n_future = int(request.json.get("n_future", 5))
+
+    # medie_predette = forecast_exam_means(
+    #     promossi,
+    #     iscritti,
+    #     medie_storiche,
+    #     len(medie_storiche) + n_future
+    # )
+
+
+    print("\n=== DEBUG MEDIE STORICHE ===")
+    print(df_media)
+    print("Lista medie:", medie_storiche)
     results = {}
 
     if "voti" in selected_stats:
@@ -345,15 +379,15 @@ def statistiche_globali_ajax():
         n_future = int(request.json.get("n_future", 5))
         results["previsioneiscritti"] = grafico_previsioni_iscritti(df, n_future)
         results["previsioneesiti"] = grafico_previsione_esiti_futuri(df, n_future)
+        results["previsionemedie"] = grafico_previsione_medie(df, n_future)
 
     else:
         print("NON genero previsioni")
 
-    n_future = int(request.json.get("n_future", 5))
-    results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
+    #n_future = int(request.json.get("n_future", 5))
+    #results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
 
     if "heatmap" in selected_stats:
-        print("Genero grafico: heatmap")
         results["heatmap"] = heatmap_voti(df)
     
     n_future = int(request.json.get("n_future", 5))
@@ -391,6 +425,7 @@ def statistiche_globali():
     graph_ratio=None
     graph_piscritti=None
     graph_previsioneesiti=None
+    graph_pmedie=None
     
 
     # --- SE CI SONO APPELLI CARICATI ---
@@ -437,6 +472,7 @@ def statistiche_globali():
                 graph_previsione = grafico_previsione(df)
                 graph_piscritti = grafico_previsioni_iscritti(df, n_future=5)
                 graph_previsioneesiti = grafico_previsione_esiti_futuri(df, n_future=5)
+                graph_pmedie = grafico_previsione_medie(df, n_future=5)
         
             
 
@@ -458,7 +494,8 @@ def statistiche_globali():
         graph_heatmap=graph_heatmap,
         graph_ratio=graph_ratio,
         graph_piscritti=graph_piscritti,
-        graph_previsioneesiti=graph_previsioneesiti
+        graph_previsioneesiti=graph_previsioneesiti,
+        graph_pmedie=graph_pmedie
         
     )
 

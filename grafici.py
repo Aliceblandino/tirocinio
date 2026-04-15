@@ -1350,5 +1350,346 @@ def grafico_previsione_esiti_futuri(df, n_future=5):
         yaxis_title="Numero studenti",
         height=600
     )
-
+    print("COLONNE DF:", df.columns)
     return fig.to_dict()
+
+
+#Previsione delle medie
+
+#1.componenti
+def mean_model(medie):
+    return np.mean(medie)
+
+def last_value_model(medie):
+    return medie[-1]
+
+def regression_model_medie(promossi, iscritti, medie):
+    # pass_rate
+    p = np.array(promossi) / np.array(iscritti)
+    y = np.array(medie)
+
+    # regressione: y = a + b*p
+    X = np.vstack([np.ones(len(p)), p]).T
+    coeffs = np.linalg.lstsq(X, y, rcond=None)[0]
+
+    return coeffs  # a, b
+
+
+def predict_regression(coeffs, prom_prev, iscritti_prev):
+    p = prom_prev / iscritti_prev
+    a, b = coeffs
+    return a + b * p
+
+#2.pesi adattivi
+def get_weights(n):
+    if n <= 5:
+        return 0.5, 0.2, 0.3   # media, regressione, last
+    elif n <= 20:
+        return 0.3, 0.5, 0.2
+    else:
+        return 0.2, 0.7, 0.1
+
+# #3. modello completo: ensamable di media storica + regressione + ultimo valore
+# def predict_exam_mean(
+#     promossi,
+#     iscritti,
+#     medie,
+#     prom_prev,
+#     iscritti_prev
+# ):
+#     """
+#     Predice la media futura combinando:
+#     - media storica
+#     - regressione su pass_rate
+#     - ultimo valore
+#     """
+
+#     n = len(medie)
+
+#     # --- componenti ---
+#     m = mean_model(medie)
+#     l = last_value_model(medie)
+
+#     coeffs = regression_model_medie(promossi, iscritti, medie)
+#     r = predict_regression(coeffs, prom_prev, iscritti_prev)
+
+#     # --- pesi ---
+#     w_m, w_r, w_l = get_weights(n)
+
+#     # --- ensemble ---
+#     prediction = (w_m * m) + (w_r * r) + (w_l * l)
+
+#     return {
+#         "media_predetta": prediction,
+#         "componenti": {
+#             "media_storica": m,
+#             "regressione": r,
+#             "ultimo_valore": l
+#         },
+#         "pesi": {
+#             "media": w_m,
+#             "regressione": w_r,
+#             "ultimo": w_l
+#         }
+#     }
+# def predict_exam_mean(prom, isc, med, prom_prev, iscritti_prev):
+#     import numpy as np
+
+#     # 1) media mobile degli ultimi 3 valori (se ci sono)
+#     if len(med) >= 3:
+#         ma3 = np.mean(med[-3:])
+#     else:
+#         ma3 = np.mean(med)
+
+#     # 2) regressione lineare su tutta la serie
+#     X = np.arange(len(med))
+#     Y = np.array(med)
+#     if len(med) >= 2:
+#         coeffs = np.polyfit(X, Y, 1)
+#         trend_pred = coeffs[0] * len(med) + coeffs[1]
+#     else:
+#         trend_pred = med[-1]
+
+#     # 3) peso del rapporto promossi/iscritti
+#     ratio = prom_prev / iscritti_prev if iscritti_prev > 0 else 1
+#     ratio_adj = 18 + (ratio * 12)  # 18–30
+
+#     # 4) combinazione dei modelli
+#     pred = (ma3 * 0.4) + (trend_pred * 0.4) + (ratio_adj * 0.2)
+
+#     return {"media_predetta": pred}
+def predict_exam_mean(prom, isc, med, prom_prev, iscritti_prev):
+    import numpy as np
+
+    # --- 1) Media mobile degli ultimi 3 valori ---
+    if len(med) >= 3:
+        ma3 = np.mean(med[-3:])
+    else:
+        ma3 = np.mean(med)
+
+    # --- 2) Trend lineare su tutta la serie ---
+    X = np.arange(len(med))
+    Y = np.array(med)
+    if len(med) >= 2:
+        coeffs = np.polyfit(X, Y, 1)
+        trend_pred = coeffs[0] * len(med) + coeffs[1]
+    else:
+        trend_pred = med[-1]
+
+    # --- 3) Dinamica: differenza (delta) ---
+    if len(med) >= 2:
+        delta = med[-1] - med[-2]
+    else:
+        delta = 0
+
+    # --- 4) Accelerazione: differenza delle differenze ---
+    if len(med) >= 3:
+        accel = (med[-1] - med[-2]) - (med[-2] - med[-3])
+    else:
+        accel = 0
+
+    # --- 5) Pass-rate ---
+    ratio = prom_prev / iscritti_prev if iscritti_prev > 0 else 1
+    ratio_adj = 18 + (ratio * 12)  # 18–30
+
+    # --- 6) Ensemble pattern-based ---
+    pred = (
+        0.30 * ma3 +        # stabilità
+        0.25 * trend_pred + # direzione generale
+        0.20 * (med[-1] + delta) +  # segue la dinamica
+        0.15 * (med[-1] + delta + accel) +  # segue accelerazione
+        0.10 * ratio_adj    # realismo basato sul pass-rate
+    )
+
+    # --- 7) Limiti realistici ---
+    pred = max(18, min(pred, 30))
+
+    return {"media_predetta": pred}
+
+def forecast_exam_means(promossi, iscritti, medie, n_finale):
+    """
+    Genera una serie predetta delle medie fino a n_finale.
+    """
+    prom = promossi.copy()
+    isc = iscritti.copy()
+    med = medie.copy()
+    print("\n=== PREVISIONE ITERATIVA MEDIE D'ESAME ===")
+    print("Promossi storici:", prom)
+    print("Iscritti storici:", isc) 
+    print("Medie storiche:", med)
+
+    while len(med) < n_finale:
+        pred = predict_exam_mean(
+            prom,
+            isc,
+            med,
+            prom_prev=prom[-1],
+            iscritti_prev=isc[-1]
+        )["media_predetta"]
+
+        # aggiungo la previsione
+        med.append(pred)
+
+        # opzionale: puoi anche prevedere promossi/iscritti
+        # per ora li manteniamo costanti
+        prom.append(prom[-1])
+        isc.append(isc[-1])
+    print("Medie previste:", med)
+
+    return med
+
+def grafico_previsione_medie(df, n_future):
+    df["voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
+    df_media = df.groupby("appello_id")["voto_num"].mean().reset_index()
+
+    medie_storiche = df_media["voto_num"].tolist()
+    etichette_storiche = df_media["appello_id"].tolist()
+
+    promossi = df[df["tipo"] == "promosso"].groupby("appello_id").size().tolist()
+    iscritti = df.groupby("appello_id").size().tolist()
+
+    # Previsioni future
+    n_finale = len(medie_storiche) + n_future
+    medie_predette = forecast_exam_means(promossi, iscritti, medie_storiche, n_finale)
+
+    n_storico = len(medie_storiche)
+    n_pred = len(medie_predette) - n_storico
+
+    # X storiche e future
+    x_storico = list(range(1, n_storico + 1))
+    x_pred = list(range(n_storico + 1, n_storico + 1 + n_pred))
+
+    # Etichette asse X
+    etichette_future = [f"appello futuro {i+1}" for i in range(n_pred)]
+    etichette_x = etichette_storiche + etichette_future
+    tickvals = x_storico + x_pred
+
+    fig = go.Figure()
+
+    #storico
+    for i in range(len(medie_storiche) - 1):
+        y0 = medie_storiche[i]
+        y1 = medie_storiche[i+1]
+        colore_linea = "green" if y1 > y0 else "red"
+
+        fig.add_trace(go.Scatter(
+            x=[x_storico[i], x_storico[i+1]],
+            y=[y0, y1],
+            mode="lines",
+            line=dict(color=colore_linea, width=3),
+            showlegend=False,
+            hoverinfo="skip"
+        ))
+
+    #pallini storici (colori dinamici)
+    fig.add_trace(go.Scatter(
+        x=x_storico,
+        y=medie_storiche,
+        mode="markers",
+        marker=dict(
+            size=10,
+            color=["red" if v < 18 else "green" for v in medie_storiche]
+        ),
+        name="Medie storiche",
+        hovertemplate="Storico<br>Appello: %{x}<br>Media: %{y:.2f}<extra></extra>"
+    ))
+
+    #previsione (colori dinamici)
+    future_vals = medie_predette[n_storico:]
+
+    for i in range(len(future_vals) - 1):
+        y0 = future_vals[i]
+        y1 = future_vals[i+1]
+        colore_linea = "green" if y1 > y0 else "red"
+
+        fig.add_trace(go.Scatter(
+            x=[x_pred[i], x_pred[i+1]],
+            y=[y0, y1],
+            mode="lines",
+            line=dict(color=colore_linea, width=3, dash="dash"),
+            showlegend=False,
+            hoverinfo="skip"
+        ))
+
+    #pallini predetti
+    fig.add_trace(go.Scatter(
+        x=x_pred,
+        y=future_vals,
+        mode="markers",
+        marker=dict(
+            size=10,
+            color=["red" if v < 18 else "orange" for v in future_vals]
+        ),
+        name="Medie predette",
+        hovertemplate="Previsione<br>Appello: %{x}<br>Media: %{y:.2f}<extra></extra>"
+    ))
+
+    #collegamento tra ultimo storico e primo predetto
+    if n_pred > 0:
+        fig.add_trace(go.Scatter(
+            x=[x_storico[-1], x_pred[0]],
+            y=[medie_storiche[-1], future_vals[0]],
+            mode="lines",
+            line=dict(color="gray", width=2, dash="dot"),
+            showlegend=False
+        ))
+
+    #area di confidenza ±5%
+    tutte = medie_predette
+    upper = [v * 1.05 for v in tutte]
+    lower = [v * 0.95 for v in tutte]
+
+    fig.add_trace(go.Scatter(
+        x=tickvals,
+        y=upper,
+        mode="lines",
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo="skip"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=tickvals,
+        y=lower,
+        mode="lines",
+        fill="tonexty",
+        fillcolor="rgba(200,200,200,0.2)",
+        line=dict(width=0),
+        name="Intervallo ±5%",
+        hoverinfo="skip"
+    ))
+
+
+    #linea "Inizio previsione"
+    fig.add_vline(
+        x=n_storico + 0.5,
+        line_width=2,
+        line_dash="dot",
+        line_color="gray"
+    )
+
+    fig.add_annotation(
+        x=n_storico + 0.5,
+        y=max(medie_predette),
+        text="Inizio previsione",
+        showarrow=False,
+        yshift=10,
+        font=dict(color="gray", size=10)
+    )
+
+    #asse x con etichette storiche + future
+    fig.update_xaxes(
+        tickmode="array",
+        tickvals=tickvals,
+        ticktext=etichette_x
+    )
+
+    fig.update_layout(
+        title="Andamento delle Medie d'Esame (storico + previsione)",
+        xaxis_title="Appello",
+        yaxis_title="Media",
+        template="plotly_white",
+        legend=dict(x=0.01, y=0.99)
+    )
+
+    return fig.to_plotly_json()
