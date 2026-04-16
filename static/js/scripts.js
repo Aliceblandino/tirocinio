@@ -12,7 +12,6 @@ const descrizioni = {
     "g-cumulativa": "Distribuzione cumulativa dei voti.",
     "g-previsioni": "Previsione dei voti futuri tramite regressione lineare."
 };
-
 function apriZoom(divId, plotData) {
     const modal = document.getElementById("zoom-modal");
     const zoomPlot = document.getElementById("zoom-plot");
@@ -30,8 +29,14 @@ function apriZoom(divId, plotData) {
     // Descrizione
     zoomDesc.textContent = descrizioni[divId] || "Descrizione non disponibile.";
 
-    // Se NON è previsioni → nascondi slider
-    if (divId !== "g-previsioni") {
+    // ============================
+    // NUOVA LOGICA: controlla data-theme
+    // ============================
+    const originalDiv = document.getElementById(divId);
+    const theme = originalDiv.getAttribute("data-theme");
+
+    // Se NON è un grafico di previsioni → nascondi slider
+    if (theme !== "previsioni") {
         sliderWrapper.style.display = "none";
         return;
     }
@@ -51,7 +56,7 @@ function apriZoom(divId, plotData) {
         let newLayout = JSON.parse(JSON.stringify(plotData.layout));
         let newData = JSON.parse(JSON.stringify(plotData.data));
 
-        // Taglia le previsioni
+        // Taglia le previsioni (serie 1)
         newData[1].x = newData[1].x.slice(0, n);
         newData[1].y = newData[1].y.slice(0, n);
 

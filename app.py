@@ -332,49 +332,35 @@ def statistiche_globali_ajax():
 
     if "voti" in selected_stats:
         print("Genero grafico: voti")
-        results["voti"] = grafico_distribuzione_voti(df)
-    else:
-        print("NON genero voti")
-
-    if "boxplot" in selected_stats:
         print("Genero grafico: boxplot")
-        results["boxplot"] = grafico_boxplot_per_appello(df)
-    else:
-        print("NON genero boxplot")
-
-    if "media" in selected_stats:
         print("Genero grafico: media")
-        results["media"] = grafico_media_globale(df)
-    else:
-        print("NON genero media")
-
-    if "esiti" in selected_stats:
         print("Genero grafico: esiti + cumulativa")
+        results["voti"] = grafico_distribuzione_voti(df)
+        results["boxplot"] = grafico_boxplot_per_appello(df)
+        results["media"] = grafico_media_globale(df)
         results["esiti"] = grafico_esiti(df)
         results["cumulativa"] = grafico_distribuzione_cumulativa(df)
         results["ratio"] = grafico_ratio_esiti(df)
+        results["heatmap"] = heatmap_voti(df) #???
     else:
+        print("NON genero voti")
+        print("NON genero boxplot")
+        print("NON genero media")
         print("NON genero esiti")
 
-    if "genere" in selected_stats:
+    if "affluenza" in selected_stats:
         print("Genero grafico: genere")
         results["genere"] = grafico_genere_per_appello(df)
-    else:
-        print("NON genero genere")
-
-    if "ripetizioni" in selected_stats:
         print("Genero grafico: ripetizioni")
         df_rip = carica_ripetizioni(selected_appelli)
-        print("Ripetizioni rows:", len(df_rip))
         results["ripetizioni"] = grafico_ripetizioni(df_rip)
     else:
+        print("NON genero genere")
         print("NON genero ripetizioni")
+
     if "previsioni" in selected_stats:
         print("Genero grafico: previsioni")
-
-        # Previsione voti (grafico vecchio)
         results["previsioni"] = grafico_previsione(df)
-
         # Previsione iscritti (grafico nuovo)
         n_future = int(request.json.get("n_future", 5))
         results["previsioneiscritti"] = grafico_previsioni_iscritti(df, n_future)
@@ -387,11 +373,11 @@ def statistiche_globali_ajax():
     #n_future = int(request.json.get("n_future", 5))
     #results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
 
-    if "heatmap" in selected_stats:
-        results["heatmap"] = heatmap_voti(df)
+   
+        
     
-    n_future = int(request.json.get("n_future", 5))
-    results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
+    # n_future = int(request.json.get("n_future", 5))
+    # results["previsioni"] = grafico_previsioni_iscritti(df, n_future)
 
     print("RISULTATI AJAX:", results.keys())
     print("=====================\n")
@@ -403,7 +389,7 @@ def statistiche_globali():
     appelli = session.get("appelli", [])
 
     # --- DEFAULT ---
-    selected_stats = ["ripetizioni", "genere", "voti", "boxplot", "media", "esiti"]
+    selected_stats = [ "voti", "affluenza", "previsioni"]
     selected_appelli = [str(a["id"]) for a in appelli]  # TUTTO STRINGA
 
     # --- SE ARRIVA UN POST, LEGGO I FILTRI ---
@@ -445,28 +431,17 @@ def statistiche_globali():
 
             if "voti" in selected_stats:
                 graph_distribuzione_voti = grafico_distribuzione_voti(df)
-
-            if "boxplot" in selected_stats:
                 graph_box = grafico_boxplot_per_appello(df)
-
-            if "media" in selected_stats:
-                graph_media_globale = grafico_media_globale(df)
-
-            if "esiti" in selected_stats:
                 graph_esiti = grafico_esiti(df)
                 graph_cumulativa = grafico_distribuzione_cumulativa(df)
+                graph_heatmap = heatmap_voti(df) #non so se esite
+                graph_media_globale = grafico_media_globale(df)
+
+            if "affluenza" in selected_stats:
                 graph_ratio= grafico_ratio_esiti(df)
-
-            if "genere" in selected_stats:
                 graph_genere = grafico_genere_per_appello(df)
-
-            if "ripetizioni" in selected_stats:
-                # FILTRO ANCHE LE RIPETIZIONI
                 df_rip = carica_ripetizioni(selected_appelli)
                 graph_ripetizioni = grafico_ripetizioni(df_rip)
-            
-            if "heatmap" in selected_stats:
-                graph_heatmap = heatmap_voti(df)
 
             if "previsioni" in selected_stats:
                 graph_previsione = grafico_previsione(df)

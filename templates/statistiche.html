@@ -30,119 +30,111 @@
 <div class="container mt-4">
 
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
-
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-4">← Torna alla dashboard</a>
 
-    <!-- ============================
-         CARD FILTRI
-         ============================ -->
+    <!-- FILTRI -->
     <div class="card p-3 mb-4 shadow-sm">
-
         <h5 class="mb-3">Statistiche</h5>
 
         <div class="row">
             <div class="col-md-6">
-                <label><input type="checkbox" class="tema-check" name="stats" value="ripetizioni" checked> Ripetizioni</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="genere" checked> Genere</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="voti" checked> Voti</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="previsioni" checked> Previsione</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="boxplot" checked> Boxplot</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="ratio" checked> Ratio</label><br>
-            </div>
 
-            <div class="col-md-6">
-                <label><input type="checkbox" class="tema-check" name="stats" value="boxplot" checked> Boxplot</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="media" checked> Media</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="esiti" checked> Esiti</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="cumulativa" checked> Cumulativa</label><br>
-                <label><input type="checkbox" class="tema-check" name="stats" value="heatmap" checked> Heatmap Voti</label><br>
-                
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input tema-check" type="checkbox" id="chk-voti" name="stats" value="voti" checked>
+                    <label class="form-check-label" for="chk-voti">Voti</label>
+                </div>
+
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input tema-check" type="checkbox" id="chk-affluenza" name="stats" value="affluenza" checked>
+                    <label class="form-check-label" for="chk-affluenza">Affluenza</label>
+                </div>
+
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input tema-check" type="checkbox" id="chk-previsioni" name="stats" value="previsioni" checked>
+                    <label class="form-check-label" for="chk-previsioni">Previsioni</label>
+                </div>
+
             </div>
         </div>
 
         <h5 class="mt-4">Appelli</h5>
-
         <div class="row">
             {% for a in appelli %}
-            <div class="col-md-6">
-                <label>
-                    <input type="checkbox" name="appelli" value="{{ a.id }}" checked>
-                    {{ a.header.data }} – {{ a.header.attivita }} - {{ a.header.data_appello }}
-                </label>
+            <div class="col-md-6 mb-1">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="appelli" value="{{ a.id }}" id="appello-{{ a.id }}" checked>
+                    <label class="form-check-label" for="appello-{{ a.id }}">
+                        {{ a.header.data }} – {{ a.header.attivita }} - {{ a.header.data_appello }}
+                    </label>
+                </div>
             </div>
             {% endfor %}
         </div>
-
-    </div>
-    <div class="mt-3 mb-4">
-    <label class="form-label">Numero appelli previsti:</label>
-    <input type="range" id="slider-previsioni" min="1" max="10" value="3" class="form-range">
-</div>
-
-    <!-- MESSAGGIO SE NESSUN APPELLO -->
-    <div id="no-appelli" class="alert alert-warning mt-3" style="display:none;">
-        Nessun appello selezionato. Seleziona almeno un appello per visualizzare le statistiche.
     </div>
 
-    <!-- ============================
-         GRIGLIA GRAFICI
-         ============================ -->
+ <!-- MESSAGGIO SE NESSUN APPELLO -->
+<div id="no-appelli" class="alert alert-warning mt-3" style="display:none;">Nessun appello selezionato. Seleziona almeno un appello per visualizzare le statistiche.</div>
+
+<!-- GRAFICI-->
+<div class="container mb-5">
     <h5 class="mt-4">Tutti i grafici</h5>
 
     <div class="row g-4 mt-3">
 
-        <div class="col-md-6">
-            <div id="g-boxplot" class="grafico" data-theme="boxplot"></div>
-        </div>
-
-        <div class="col-md-6">
-            <div id="g-media" class="grafico" data-theme="media"></div>
-        </div>
-
-        <div class="col-md-6">
-            <div id="g-esiti" class="grafico" data-theme="esiti"></div>
-        </div>
-
+        <!-- ===== GRUPPO: VOTI ===== -->
         <div class="col-md-6">
             <div id="g-dvoti" class="grafico" data-theme="voti"></div>
         </div>
 
         <div class="col-md-6">
-            <div id="g-genere" class="grafico" data-theme="genere"></div>
+            <div id="g-boxplot" class="grafico" data-theme="voti"></div>
         </div>
 
         <div class="col-md-6">
-            <div id="g-ripetizioni" class="grafico" data-theme="ripetizioni"></div>
+            <div id="g-esiti" class="grafico" data-theme="voti"></div>
         </div>
 
         <div class="col-md-6">
-            <div id="g-cumulativa" class="grafico" data-theme="cumulativa"></div>
+            <div id="g-cumulativa" class="grafico" data-theme="voti"></div>
         </div>
+
+        <div class="col-md-6">
+            <div id="g-heatmap" class="grafico" data-theme="voti"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-media" class="grafico" data-theme="voti"></div>
+        </div>
+
+        <!-- ===== GRUPPO: AFFLUENZA ===== -->
+        <div class="col-md-6">
+            <div id="g-ratio" class="grafico" data-theme="affluenza"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-genere" class="grafico" data-theme="affluenza"></div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="g-ripetizioni" class="grafico" data-theme="affluenza"></div>
+        </div>
+
+        <!-- ===== GRUPPO: PREVISIONI ===== -->
         <div class="col-md-6">
             <div id="g-previsioni" class="grafico" data-theme="previsioni"></div>
         </div>
-        <div class="col-md-6">
-            <div id="g-heatmap" class="grafico" data-theme="heatmap"></div>
-        </div> 
-        <div class="col-md-6">
-            <div id="g-ratio" class="grafico" data-theme="ratio"></div>
-        </div>
+
         <div class="col-md-6">
             <div id="g-piscritti" class="grafico" data-theme="previsioni"></div>
         </div>
+
         <div class="col-md-6">
             <div id="g-previsioneesiti" class="grafico" data-theme="previsioni"></div>
         </div>
-        
+
         <div class="col-md-6">
             <div id="g-pmedie" class="grafico" data-theme="previsioni"></div>
         </div>
-            
-
-    </div>
-</div>
-
-
 
     </div>
 
@@ -150,12 +142,12 @@
        class="btn btn-secondary w-100 mb-4 mt-4">
        Torna alla dashboard
     </a>
-
 </div>
 
-<!-- ============================
-     SCRIPT AJAX + NORMALIZZAZIONE
-     ============================ -->
+
+
+
+<!-- SCRIPT AJAX + NORMALIZZAZIONE -->
 <script>
 // Raccoglie i filtri selezionati
 function getSelectedFilters() {
@@ -208,7 +200,8 @@ function aggiornaGrafici() {
         body: JSON.stringify({
             stats: filters.stats,
             appelli: filters.appelli,
-            n_future: document.getElementById("slider-previsioni").value
+           n_future: (document.getElementById("slider-previsioni")?.value || 3)
+
         })
     })
 
@@ -232,41 +225,22 @@ function aggiornaGrafici() {
         };
 
     for (const key in mapping) {
-        const divId = mapping[key];
-        const obj = normalizzaGrafico(data[key]);
+    const divId = mapping[key];
+    const obj = normalizzaGrafico(data[key]);
 
-        if (obj && obj.data && obj.layout) {
-            Plotly.newPlot(divId, obj.data, obj.layout);
-            document.getElementById(divId).onclick = () => apriZoom(divId, obj);
+    if (obj && obj.data && obj.layout) {
+        Plotly.newPlot(divId, obj.data, obj.layout);
 
-            // ============================
-            // SLIDER SOLO PER PREVISIONI
-            // ============================
-            if (key === "previsioni") {
-                const slider = document.getElementById("zoom-slider-previsioni");
+        // CLICK → ZOOM
+        document.getElementById(divId).onclick = () => {
+            apriZoom(divId, obj);
+        };
 
-                if (slider) {
-                    slider.oninput = () => {
-                        const anni = parseInt(slider.value);
-
-                        // Copia layout originale
-                        let newLayout = JSON.parse(JSON.stringify(obj.layout));
-
-                        // Aggiorna titolo
-                        newLayout.title = `Previsione voti (orizzonte: ${anni} anni)`;
-
-                        // Aggiorna range asse X
-                        newLayout.xaxis.range = [0, anni];
-
-                        Plotly.newPlot(divId, obj.data, newLayout);
-                    };
-                }
-            }
-
-        } else {
-            clearPlot(divId);
-        }
+    } else {
+        clearPlot(divId);
     }
+}
+
 
         aggiornaVisibilitaTemi();
     });

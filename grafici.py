@@ -100,35 +100,108 @@ def grafico_distribuzione_voti(df):
     }
     return graph
 #distribuzione cumulativa bruttino (5)
-def grafico_distribuzione_cumulativa(df):
-    # prendiamo solo i voti validi
-    df_validi = df.dropna(subset=["voto"]).copy()
-    df_validi["voto"] = df_validi["voto"].astype(float)
+def grafico_previsione_esiti_futuri(df, n_future=5):
+    import plotly.graph_objects as go
 
-    # trasformiamo i voti in categorie
-    def categ(v):
-        if v < 18:
-            return "Insufficiente"
-        elif v == 31:
-            return "30L"
-        else:
-            return str(int(v))
+    print("\n=== PREVISIONE ESITI FUTURI (CONFRONTO STORICO + FUTURO) ===")
+    print(df.head(20))
+    print("Colonne:", df.columns)
+    print("Tipi unici:", df["tipo"].unique())
 
-    df_validi["categoria"] = df_validi["voto"].apply(categ)
+    df = df.copy()
+    df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True)
 
-    # ordine categorie
-    ordine = ["Insufficiente"] + [str(i) for i in range(18, 31)] + ["30L"]
-    df_validi["categoria"] = pd.Categorical(df_validi["categoria"], categories=ordine, ordered=True)
+    # ============================================================
+    # 1) ESITI STORICI PER OGNI APPELLO
+    # ============================================================
+    gruppi = df.groupby("data_appello")
 
+    storico_prom = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") >= 18).sum()).tolist()
+    storico_bocc = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") < 18).sum()).tolist()
+    storico_ass  = gruppi.apply(lambda g: (g["tipo"] == "assente").sum()).tolist()
+    storico_rit  = gruppi.apply(lambda g: (g["tipo"] == "ritirato").sum()).tolist()
+
+    date_storiche = sorted(df["data_appello"].unique())
+
+    print("\n=== DEBUG: Esiti storici ===")
+    print("Date storiche:", date_storiche)
+    print("Promossi storici:", storico_prom)
+    print("Bocciati storici:", storico_bocc)
+    print("Assenti storici:", storico_ass)
+    print("Ritirati storici:", storico_rit)
+
+    # ============================================================
+    # 2) PREVISIONE ISCRITTI FUTURI (ENSEMBLE)
+    # ============================================================
+    df_count = (
+        df.groupby(["appello_id", "data_appello"])
+        .size()
+        .reset_index(name="Iscritti")
+        .sort_values("data_appello")
+    )
+
+    serie_storica = df_count["Iscritti"].tolist()
+    serie_prevista = forecast_iterativo(serie_storica.copy(), len(serie_storica) + n_future)
+    iscritti_futuri = serie_prevista[-n_future:]
+
+    print("\nIscritti futuri previsti:", iscritti_futuri)
+
+    ultima_data = df_count["data_appello"].iloc[-1]
+    future_dates = [ultima_data + pd.Timedelta(days=30*(i+1)) for i in range(n_future)]
+
+    print("Date future:", future_dates)
+
+    # ============================================================
+    # 3) PROBABILITÀ STORICHE GLOBALI
+    # ============================================================
+    p_prom, p_bocc, p_ass, p_rit = probabilita_storiche_esiti(df)
+
+    # ============================================================
+    # 4) STIMA ESITI FUTURI
+    # ============================================================
+    fut_prom = []
+    fut_bocc = []
+    fut_ass  = []
+    fut_rit  = []
+
+    for iscritti in iscritti_futuri:
+        pred = stima_esiti_future_sessioni(iscritti, p_prom, p_bocc, p_ass, p_rit)
+        fut_prom.append(pred["promossi"])
+        fut_bocc.append(pred["bocciati"])
+        fut_ass.append(pred["assenti"])
+        fut_rit.append(pred["ritirati"])
+
+    print("\n=== DEBUG: Previsioni esiti futuri ===")
+    print("Promossi futuri:", fut_prom)
+    print("Bocciati futuri:", fut_bocc)
+    print("Assenti futuri:", fut_ass)
+    print("Ritirati futuri:", fut_rit)
+
+    # ============================================================
+    # 5) GRAFICO STACKED BAR (STORICO + FUTURO)
+    # ============================================================
     fig = go.Figure()
-    for appello in df_validi["appello_id"].unique():
-        df_app = df_validi[df_validi["appello_id"] == appello]
 
-        fig.add_trace(go.Histogram(
-            x=df_app["categoria"],
-            name=f"Appello {appello}",
-            opacity=0.6
-        ))
+    # --- STORICO ---
+    fig.add_trace(go.Bar(name="Promossi (storico)", x=date_storiche, y=storico_prom, marker=dict(color="green")))
+    fig.add_trace(go.Bar(name="Bocciati (storico)", x=date_storiche, y=storico_bocc, marker=dict(color="red")))
+    fig.add_trace(go.Bar(name="Assenti (storico)",  x=date_storiche, y=storico_ass,  marker=dict(color="gray")))
+    fig.add_trace(go.Bar(name="Ritirati (storico)", x=date_storiche, y=storico_rit,  marker=dict(color="orange")))
+
+    # --- FUTURO ---
+    fig.add_trace(go.Bar(name="Promossi (previsti)", x=future_dates, y=fut_prom, marker=dict(color="lightgreen"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Bocciati (previsti)", x=future_dates, y=fut_bocc, marker=dict(color="lightcoral"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Assenti (previsti)",  x=future_dates, y=fut_ass,  marker=dict(color="lightgray"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Ritirati (previsti)", x=future_dates, y=fut_rit,  marker=dict(color="moccasin"), opacity=0.6))
+
+    fig.update_layout(
+        barmode="stack",
+        title="Confronto esiti: storico vs futuro previsto",
+        xaxis_title="Appelli",
+        yaxis_title="Numero studenti",
+        height=600
+    )
+    return fig.to_dict()
 
     # Ordine asse X
     fig.update_xaxes(categoryorder="array", categoryarray=ordine)
@@ -401,11 +474,10 @@ def grafico_distribuzione_voti(df):
     return graph
 #distribuzione cumulativa bruttino (5)
 def grafico_distribuzione_cumulativa(df):
-    # prendiamo solo i voti validi
     df_validi = df.dropna(subset=["voto"]).copy()
     df_validi["voto"] = df_validi["voto"].astype(float)
 
-    # trasformiamo i voti in categorie
+    # Trasformiamo i voti in categorie
     def categ(v):
         if v < 18:
             return "Insufficiente"
@@ -416,28 +488,34 @@ def grafico_distribuzione_cumulativa(df):
 
     df_validi["categoria"] = df_validi["voto"].apply(categ)
 
-    # ordine categorie
+    # Ordine categorie
     ordine = ["Insufficiente"] + [str(i) for i in range(18, 31)] + ["30L"]
-    df_validi["categoria"] = pd.Categorical(df_validi["categoria"], categories=ordine, ordered=True)
+
+    # Pivot: righe = categoria, colonne = appello_id, valori = conteggi
+    tabella = (
+        df_validi
+        .groupby(["categoria", "appello_id"])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(index=ordine, fill_value=0)
+    )
 
     fig = go.Figure()
-    for appello in df_validi["appello_id"].unique():
-        df_app = df_validi[df_validi["appello_id"] == appello]
 
-        fig.add_trace(go.Histogram(
-            x=df_app["categoria"],
-            name=f"Appello {appello}",
-            opacity=0.6
+    # Una barra per ogni appello (stacked)
+    for appello in tabella.columns:
+        fig.add_trace(go.Bar(
+            x=tabella.index,
+            y=tabella[appello],
+            name=f"Appello {appello}"
         ))
 
-    # Ordine asse X
-    fig.update_xaxes(categoryorder="array", categoryarray=ordine)
-
     fig.update_layout(
+        barmode="stack",
         title="Distribuzione dei voti per appello",
         xaxis_title="Voto",
-        yaxis_title="Frequenza",
-        barmode="overlay"   # barre sovrapposte
+        yaxis_title="Numero studenti",
+        height=600
     )
 
     return fig.to_json()
@@ -1350,7 +1428,6 @@ def grafico_previsione_esiti_futuri(df, n_future=5):
         yaxis_title="Numero studenti",
         height=600
     )
-    print("COLONNE DF:", df.columns)
     return fig.to_dict()
 
 
