@@ -64,7 +64,7 @@ def upload():
             "meta": appello["meta"]
         })
 
-    # 👉 ORDINAMENTO QUI, DOPO AVER AGGIUNTO TUTTI GLI APPELLI
+    # ORDINAMENTO QUI, DOPO AVER AGGIUNTO TUTTI GLI APPELLI
     try:
         session["appelli"].sort(
             key=lambda a: pd.to_datetime(a["header"]["data_appello"], dayfirst=True)
@@ -302,7 +302,7 @@ def statistiche_globali_ajax():
     print("DF columns:",len(df))
     print("DF columns:", df.columns.tolist())
     print(df.head())
-        # =========================
+    # =========================
     # CALCOLO MEDIE STORICHE
     # =========================
     df_media = (
@@ -619,5 +619,5 @@ def dettaglio_appello(appello_id):
     )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
     
