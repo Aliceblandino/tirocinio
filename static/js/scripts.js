@@ -12,7 +12,17 @@ const descrizioni = {
     "g-cumulativa": "Distribuzione cumulativa dei voti.",
     "g-previsioni": "Previsione dei voti futuri tramite regressione lineare."
 };
-function apriZoom(divId, plotData) {
+
+// Grafici la cui struttura (tracce multiple: segmenti storici + previsti,
+// subplot, bande di confidenza...) non permette di "tagliare" i dati lato
+// client tramite un semplice slice degli array — per questi il valore dello
+// slider va ricalcolato interamente dal server.
+const PREVISIONI_RICALCOLO_SERVER = {
+    "previsionemedie": "g-pmedie",
+    "previsioneesiti": "g-previsioneesiti"
+};
+
+function apriZoom(divId, plotData, resultKey) {
     const modal = document.getElementById("zoom-modal");
     const zoomPlot = document.getElementById("zoom-plot");
     const zoomDesc = document.getElementById("zoom-description");
@@ -43,8 +53,26 @@ function apriZoom(divId, plotData) {
 
     // Se è previsioni → mostra slider
     sliderWrapper.style.display = "block";
+    slider.oninput = null;
 
-    // Range dinamico
+    if (resultKey in PREVISIONI_RICALCOLO_SERVER) {
+        // Grafici a struttura complessa: lo slider richiede un ricalcolo
+        // server-side (il client non sa quali tracce sono "storiche" e
+        // quali "previste" senza rifare il lavoro del server).
+        slider.min = 1;
+        slider.max = 10;
+        slider.value = 3;
+
+        let debounceTimer = null;
+        slider.oninput = () => {
+            const n = parseInt(slider.value);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => ricalcolaGraficoPrevisione(resultKey, n), 200);
+        };
+        return;
+    }
+
+    // Grafici semplici a 2 tracce (storico + previsione): taglio client-side
     slider.min = 1;
     slider.max = plotData.max_anni;
     slider.value = plotData.default_anni;
@@ -64,6 +92,32 @@ function apriZoom(divId, plotData) {
 
         Plotly.newPlot("zoom-plot", newData, newLayout);
     };
+}
+
+// Richiede al server il grafico di previsione ricalcolato con n_future = n
+// e lo ridisegna nella modale di zoom. Usato per i grafici la cui struttura
+// non è compatibile col semplice taglio client-side degli array.
+function ricalcolaGraficoPrevisione(resultKey, n) {
+    if (typeof getSelectedFilters !== "function") return;
+    const filters = getSelectedFilters();
+
+    fetch("/statistiche_globali_ajax", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            stats: ["previsioni"],
+            appelli: filters.appelli,
+            n_future: n
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        const raw = data[resultKey];
+        const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (obj && obj.data && obj.layout) {
+            Plotly.newPlot("zoom-plot", obj.data, obj.layout);
+        }
+    });
 }
 
 
