@@ -100,379 +100,6 @@ def grafico_distribuzione_voti(df):
     }
     return graph
 #distribuzione cumulativa bruttino (5)
-def grafico_previsione_esiti_futuri(df, n_future=5):
-    import plotly.graph_objects as go
-
-    print("\n=== PREVISIONE ESITI FUTURI (CONFRONTO STORICO + FUTURO) ===")
-    print(df.head(20))
-    print("Colonne:", df.columns)
-    print("Tipi unici:", df["tipo"].unique())
-
-    df = df.copy()
-    df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True)
-
-    # ============================================================
-    # 1) ESITI STORICI PER OGNI APPELLO
-    # ============================================================
-    gruppi = df.groupby("data_appello")
-
-    storico_prom = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") >= 18).sum()).tolist()
-    storico_bocc = gruppi.apply(lambda g: (pd.to_numeric(g["voto"], errors="coerce") < 18).sum()).tolist()
-    storico_ass  = gruppi.apply(lambda g: (g["tipo"] == "assente").sum()).tolist()
-    storico_rit  = gruppi.apply(lambda g: (g["tipo"] == "ritirato").sum()).tolist()
-
-    date_storiche = sorted(df["data_appello"].unique())
-
-    print("\n=== DEBUG: Esiti storici ===")
-    print("Date storiche:", date_storiche)
-    print("Promossi storici:", storico_prom)
-    print("Bocciati storici:", storico_bocc)
-    print("Assenti storici:", storico_ass)
-    print("Ritirati storici:", storico_rit)
-
-    # ============================================================
-    # 2) PREVISIONE ISCRITTI FUTURI (ENSEMBLE)
-    # ============================================================
-    df_count = (
-        df.groupby(["appello_id", "data_appello"])
-        .size()
-        .reset_index(name="Iscritti")
-        .sort_values("data_appello")
-    )
-
-    serie_storica = df_count["Iscritti"].tolist()
-    serie_prevista = forecast_iterativo(serie_storica.copy(), len(serie_storica) + n_future)
-    iscritti_futuri = serie_prevista[-n_future:]
-
-    print("\nIscritti futuri previsti:", iscritti_futuri)
-
-    ultima_data = df_count["data_appello"].iloc[-1]
-    future_dates = [ultima_data + pd.Timedelta(days=30*(i+1)) for i in range(n_future)]
-
-    print("Date future:", future_dates)
-
-    # ============================================================
-    # 3) PROBABILITÀ STORICHE GLOBALI
-    # ============================================================
-    p_prom, p_bocc, p_ass, p_rit = probabilita_storiche_esiti(df)
-
-    # ============================================================
-    # 4) STIMA ESITI FUTURI
-    # ============================================================
-    fut_prom = []
-    fut_bocc = []
-    fut_ass  = []
-    fut_rit  = []
-
-    for iscritti in iscritti_futuri:
-        pred = stima_esiti_future_sessioni(iscritti, p_prom, p_bocc, p_ass, p_rit)
-        fut_prom.append(pred["promossi"])
-        fut_bocc.append(pred["bocciati"])
-        fut_ass.append(pred["assenti"])
-        fut_rit.append(pred["ritirati"])
-
-    print("\n=== DEBUG: Previsioni esiti futuri ===")
-    print("Promossi futuri:", fut_prom)
-    print("Bocciati futuri:", fut_bocc)
-    print("Assenti futuri:", fut_ass)
-    print("Ritirati futuri:", fut_rit)
-
-    # ============================================================
-    # 5) GRAFICO STACKED BAR (STORICO + FUTURO)
-    # ============================================================
-    fig = go.Figure()
-
-    # --- STORICO ---
-    fig.add_trace(go.Bar(name="Promossi (storico)", x=date_storiche, y=storico_prom, marker=dict(color="green")))
-    fig.add_trace(go.Bar(name="Bocciati (storico)", x=date_storiche, y=storico_bocc, marker=dict(color="red")))
-    fig.add_trace(go.Bar(name="Assenti (storico)",  x=date_storiche, y=storico_ass,  marker=dict(color="gray")))
-    fig.add_trace(go.Bar(name="Ritirati (storico)", x=date_storiche, y=storico_rit,  marker=dict(color="orange")))
-
-    # --- FUTURO ---
-    fig.add_trace(go.Bar(name="Promossi (previsti)", x=future_dates, y=fut_prom, marker=dict(color="lightgreen"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Bocciati (previsti)", x=future_dates, y=fut_bocc, marker=dict(color="lightcoral"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Assenti (previsti)",  x=future_dates, y=fut_ass,  marker=dict(color="lightgray"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Ritirati (previsti)", x=future_dates, y=fut_rit,  marker=dict(color="moccasin"), opacity=0.6))
-
-    fig.update_layout(
-        barmode="stack",
-        title="Confronto esiti: storico vs futuro previsto",
-        xaxis_title="Appelli",
-        yaxis_title="Numero studenti",
-        height=600
-    )
-    return fig.to_dict()
-
-    # Ordine asse X
-    fig.update_xaxes(categoryorder="array", categoryarray=ordine)
-
-    fig.update_layout(
-        title="Distribuzione dei voti per appello",
-        xaxis_title="Voto",
-        yaxis_title="Frequenza",
-        barmode="overlay"   # barre sovrapposte
-    )
-
-    return fig.to_json()
-
-#distribuzione maschi/femmine per appello (6)
-def grafico_genere_per_appello(df):
-    fig = px.histogram(
-        df,
-        x="appello_id",
-        color="Genere",
-        barmode="group",
-        title="Distribuzione maschi/femmine per appello",
-        category_orders={"Genere": ["M", "F", "?"]},
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-
-    fig.update_layout(
-        xaxis_title="Appello",
-        yaxis_title="Numero studenti"
-    )
-
-    return fig.to_json()
-
-def grafico_ripetizioni(df):
-    conteggio_ripetizioni = df["matricola"].value_counts()
-    df_tentativi = conteggio_ripetizioni.value_counts().sort_index()
-
-    x = list(map(int, df_tentativi.index.tolist()))
-    y = list(map(int, df_tentativi.values.tolist()))
-
-    fig = go.Figure(
-        data=[
-            go.Bar(
-                x=x,
-                y=y,
-                marker=dict(color="#636efa")
-            )
-        ]
-    )
-
-    fig.update_layout(
-        title="Quante volte gli studenti hanno sostenuto l'esame",
-        xaxis_title="Numero di tentativi",
-        yaxis_title="Numero di studenti",
-        xaxis=dict(tickmode='linear', dtick=1)
-    )
-
-    return fig.to_json()
-
-#GRAFICI NUOVI
-
-
-
-
-
-
-
-
-
-#--Grafici singoli
-def grafico_distribuzione_appello(df, appello_id):
-    df = df[df["appello_id"] == appello_id].copy()
-
-    voti = pd.to_numeric(df["voto"], errors="coerce")
-    voti_validi = voti.dropna()
-
-    conteggio = voti_validi.value_counts().sort_index()
-
-    return {
-        "data": [{
-            "x": conteggio.index.tolist(),
-            "y": conteggio.values.tolist(),
-            "type": "bar",
-            "marker": {"color": "orange"}
-        }],
-        "layout": {
-            "title": f"Distribuzione voti",
-            "xaxis": {"title": "Voto"},
-            "yaxis": {"title": "Numero studenti"}
-        }
-    }
-def grafico_boxplot_appello(df, appello_id):
-    df = df[df["appello_id"] == appello_id].copy()
-
-    voti = pd.to_numeric(df["voto"], errors="coerce")
-
-    return {
-        "data": [{
-            "y": voti.tolist(),
-            "type": "box",
-            "name": f"Appello {appello_id}",
-            "marker": {"color": "orange"}
-        }],
-        "layout": {
-            "title": "Distribuzione statistica voti"
-        }
-    }
-def grafico_esiti_appello(df, appello_id):
-    df = df[df["appello_id"] == appello_id].copy()
-
-    serie = df["voto"]
-    voti_num = pd.to_numeric(serie, errors="coerce")
-
-    assenti = (serie == "ASS").sum()
-    ritirati = (serie == "RIT").sum()
-    promossi = (voti_num >= 18).sum()
-    bocciati = (voti_num < 18).sum()
-
-    return {
-        "data": [{
-            "x": ["Promossi", "Bocciati", "Ritirati", "Assenti"],
-            "y": [promossi, bocciati, ritirati, assenti],
-            "type": "bar",
-            "marker": {"color": "orange"}
-        }],
-        "layout": {
-            "title": "Esiti appello"
-        }
-    }
-def grafico_media_appello(df, appello_id):
-    df = df[df["appello_id"] == appello_id].copy()
-
-    voti = pd.to_numeric(df["voto"], errors="coerce")
-    media = voti.mean()
-
-    return {
-        "data": [{
-            "x": [f"Appello {appello_id}"],
-            "y": [media],
-            "type": "bar",
-            "marker": {"color": "orange"},
-            "text": [f"{media:.2f}"],
-            "textposition": "auto"
-        }],
-        "layout": {
-            "title": "Media voti",
-            "yaxis": {"title": "Media"}
-        }
-    }
-#non funziona
-def grafico_genere_uno(df, appello_id):
-    df = df[df["appello_id"] == appello_id]
-    fig = px.histogram(
-        df,
-        x="Genere",
-        color="Genere",
-        category_orders={"Genere": ["M", "F", "?"]},
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        title=f"Distribuzione maschi/femmine – Appello {appello_id}"
-    )
-    fig.update_layout(
-        xaxis_title="Genere",
-        yaxis_title="Numero studenti",
-        showlegend=False
-    )
-    return fig.to_json()
-
-#lienar regression voto medio futuro
-
-
-# grafici.py
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-import numpy as np
-from sklearn.linear_model import LinearRegression
-
-
-## GRAFICI GLOBALI (credo a questo punto)
-#boxplot (1)
-def grafico_boxplot_per_appello(df):
-    fig = px.box(df, x="appello_id", y="voto", points="all", title="Boxplot per appello")
-    print(df.columns)
-    print(df.head())
-    return fig.to_json()
-
-#media globale (2)
-def grafico_media_globale(df):
-    if df.empty:
-        # Se non ci sono dati, ritorna grafico vuoto
-        return {
-            "data": [],
-            "layout": {"title": "Media voti per appello"}
-        }
-    voti = pd.to_numeric(df["voto"], errors="coerce")#solo num
-    df["voto_num"] = voti
-
-    # Calcolo media per appello, ignorando valori NaN
-    df_media = df.groupby("appello_id")["voto_num"].mean().reset_index()
-
-    # Prepariamo i dati per Plotly
-    graph = {
-        "data": [{
-            "x": df_media["appello_id"].tolist(),  # nomi degli appelli
-            "y": df_media["voto_num"].tolist(),    # medie reali
-            "type": "bar",
-            "marker": {"color": "orange"},
-            "text": [f"{v:.2f}" for v in df_media["voto_num"]],  # mostra valori sopra barre
-            "textposition": "auto"
-        }],
-        "layout": {
-            "title": "Media voti per appello",
-            "xaxis": {"title": "Appello"},
-            "yaxis": {"title": "Voto medio"},
-            "margin": {"t": 50, "b": 100}  # spazio sotto per nomi appelli lunghi
-        }
-    }
-    return graph
-#Distribuzione esiti (3)
-def grafico_esiti(df):
-    conteggio = df["tipo"].value_counts().reset_index()
-    conteggio.columns = ["tipo", "count"]
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        x=conteggio["tipo"].tolist(),
-        y=conteggio["count"].tolist()
-    ))
-
-    fig.update_layout(
-        title="Distribuzione esiti",
-        xaxis_title="Esito",
-        yaxis_title="Numero studenti"
-    )
-
-    return fig.to_json()
-
-#distribuzione voti solo sufficienti (4)
-def grafico_distribuzione_voti(df):
-    if df.empty:
-        # Se non ci sono dati, ritorna grafico vuoto
-        return {
-            "data": [],
-            "layout": {"title": "Media voti per appello (solo sufficienti)"}
-        }
-    voti = pd.to_numeric(df["voto"], errors="coerce")#solo num
-    df["voto_num"] = voti
-    df = df[df["voto_num"] >= 18]
-
-    # Calcolo media per appello, ignorando valori NaN
-    df_media = df.groupby("appello_id")["voto_num"].mean().reset_index()
-
-    # Prepariamo i dati per Plotly
-    graph = {
-        "data": [{
-            "x": df_media["appello_id"].tolist(),  # nomi degli appelli
-            "y": df_media["voto_num"].tolist(),    # medie reali
-            "type": "bar",
-            "marker": {"color": "orange"},
-            "text": [f"{v:.2f}" for v in df_media["voto_num"]],  # mostra valori sopra barre
-            "textposition": "auto"
-        }],
-        "layout": {
-            "title": "Media voti per appello(solo sufficienti)",
-            "xaxis": {"title": "Appello"},
-            "yaxis": {"title": "Voto medio"},
-            "margin": {"t": 50, "b": 100}  # spazio sotto per nomi appelli lunghi
-        }
-    }
-    return graph
-#distribuzione cumulativa bruttino (5)
 def grafico_distribuzione_cumulativa(df):
     df_validi = df.dropna(subset=["voto"]).copy()
     df_validi["voto"] = df_validi["voto"].astype(float)
@@ -567,15 +194,80 @@ def grafico_ripetizioni(df):
 
 #GRAFICI NUOVI
 
+#tasso di superamento nel tempo (promossi / iscritti, per appello, ordinato per data)
+def grafico_tasso_superamento(df):
+    df = df.copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+    df["data_appello"] = pd.to_datetime(df["data_appello"], dayfirst=True, errors="coerce")
+
+    if df.empty:
+        return {"data": [], "layout": {"title": "Tasso di superamento per appello"}}
+
+    gruppi = df.groupby(["appello_id", "data_appello"])
+
+    tabella = gruppi.apply(
+        lambda g: pd.Series({
+            "promossi": (g["tipo"] == "promosso").sum(),
+            "iscritti": len(g)
+        })
+    ).reset_index().sort_values("data_appello")
+
+    tabella["tasso"] = (tabella["promossi"] / tabella["iscritti"] * 100).round(1)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=tabella["data_appello"].dt.strftime("%d/%m/%Y").tolist(),
+        y=tabella["tasso"].tolist(),
+        mode="lines+markers+text",
+        text=[f"{v}%" for v in tabella["tasso"]],
+        textposition="top center",
+        line=dict(color="#2ca02c", width=3),
+        marker=dict(size=8),
+        name="Tasso di superamento",
+        customdata=tabella["appello_id"].tolist(),
+        hovertemplate="Appello: %{customdata}<br>Data: %{x}<br>Superamento: %{y}%<extra></extra>"
+    ))
+
+    fig.update_layout(
+        title="Tasso di superamento per appello (promossi / iscritti)",
+        xaxis_title="Data appello",
+        yaxis_title="% Promossi",
+        yaxis=dict(range=[0, 100]),
+        height=450
+    )
+
+    return fig.to_dict()
+
+#pannello KPI riassuntivo (non un grafico plotly: numeri di sintesi)
+def kpi_riepilogo(df):
+    if df.empty:
+        return {
+            "totale_iscritti": 0,
+            "tasso_superamento": None,
+            "voto_medio": None,
+            "deviazione_std": None,
+            "tasso_assenza": None
+        }
+
+    df = df.copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+    voti_num = pd.to_numeric(df["voto"], errors="coerce")
+    voti_promossi = voti_num[df["tipo"] == "promosso"]
+
+    totale = len(df)
+    promossi = (df["tipo"] == "promosso").sum()
+    assenti = (df["tipo"] == "assente").sum()
+
+    return {
+        "totale_iscritti": int(totale),
+        "tasso_superamento": round(float(promossi) / totale * 100, 1) if totale else None,
+        "voto_medio": round(float(voti_promossi.mean()), 2) if not voti_promossi.empty else None,
+        "deviazione_std": round(float(voti_promossi.std()), 2) if len(voti_promossi) > 1 else None,
+        "tasso_assenza": round(float(assenti) / totale * 100, 1) if totale else None
+    }
 
 
-
-
-
-
-
-
-#--Grafici singoli 
+#--Grafici singoli
 # Distribuzione voti(1)
 def grafico_distribuzione_appello(df, appello_id):
     df = df[df["appello_id"] == appello_id].copy()
@@ -639,26 +331,32 @@ def grafico_esiti_appello(df, appello_id):
     )
 
     return fig.to_json()
-#media appello(3) TODO: da togliere
-def grafico_media_appello(df, appello_id):
-    df = df[df["appello_id"] == appello_id].copy()
+#kpi appello: tasso di superamento + confronto con media storica del corso (sostituisce il vecchio grafico_media_appello, ridondante col box media)
+def kpi_appello(df, appello_id):
+    df = df.copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
 
-    voti = pd.to_numeric(df["voto"], errors="coerce")
-    media = voti.mean()
+    df_app = df[df["appello_id"] == appello_id]
+    df_altri = df[df["appello_id"] != appello_id]
+
+    voti_app = pd.to_numeric(df_app["voto"], errors="coerce")
+    voti_promossi_app = voti_app[df_app["tipo"] == "promosso"]
+
+    voti_altri = pd.to_numeric(df_altri["voto"], errors="coerce")
+    voti_promossi_altri = voti_altri[df_altri["tipo"] == "promosso"]
+
+    totale = len(df_app)
+    promossi = int((df_app["tipo"] == "promosso").sum())
+
+    media_voto = round(float(voti_promossi_app.mean()), 2) if not voti_promossi_app.empty else None
+    media_storica = round(float(voti_promossi_altri.mean()), 2) if not voti_promossi_altri.empty else None
+    delta = round(media_voto - media_storica, 2) if media_voto is not None and media_storica is not None else None
 
     return {
-        "data": [{
-            "x": [f"Appello {appello_id}"],
-            "y": [media],
-            "type": "bar",
-            "marker": {"color": "orange"},
-            "text": [f"{media:.2f}"],
-            "textposition": "auto"
-        }],
-        "layout": {
-            "title": "Media voti",
-            "yaxis": {"title": "Media"}
-        }
+        "media_voto": media_voto,
+        "tasso_superamento": round(float(promossi) / totale * 100, 1) if totale else None,
+        "media_storica_corso": media_storica,
+        "delta_vs_storico": delta
     }
 #grafico maschi/femmine per appello (4)
 def grafico_genere_uno(df, appello_id):
@@ -677,6 +375,275 @@ def grafico_genere_uno(df, appello_id):
         showlegend=False
     )
     return fig.to_json()
+
+#donut esiti (7)
+def grafico_esiti_donut(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+
+    conteggi = df["tipo"].value_counts()
+    labels = ["promosso", "bocciato", "assente", "ritirato"]
+    values = [int(conteggi.get(l, 0)) for l in labels]
+    colori = {"promosso": "#2ca02c", "bocciato": "#d62728", "assente": "#7f7f7f", "ritirato": "#ff7f0e"}
+
+    fig = go.Figure(data=[go.Pie(
+        labels=["Promossi", "Bocciati", "Assenti", "Ritirati"],
+        values=values,
+        hole=0.5,
+        marker=dict(colors=[colori[l] for l in labels]),
+        textinfo="label+percent"
+    )])
+
+    fig.update_layout(title=f"Esiti appello {appello_id}")
+    return fig.to_dict()
+
+#ecdf / cumulata voti (8)
+def grafico_ecdf_voti(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    voti = pd.to_numeric(df["voto"], errors="coerce").dropna().sort_values()
+
+    if voti.empty:
+        return {"data": [], "layout": {"title": "Distribuzione cumulativa voti"}}
+
+    n = len(voti)
+    percentuali = [round((i + 1) / n * 100, 1) for i in range(n)]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=voti.tolist(),
+        y=percentuali,
+        mode="lines+markers",
+        line=dict(shape="hv", color="#1f77b4"),
+        name="% cumulativa"
+    ))
+
+    fig.update_layout(
+        title=f"Distribuzione cumulativa voti - Appello {appello_id}",
+        xaxis_title="Voto",
+        yaxis_title="% studenti con voto ≤ x",
+        yaxis=dict(range=[0, 100])
+    )
+    return fig.to_dict()
+
+#voti ordinati / ranking (9)
+def grafico_voti_ordinati(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    voti = pd.to_numeric(df["voto"], errors="coerce").dropna().sort_values().reset_index(drop=True)
+
+    if voti.empty:
+        return {"data": [], "layout": {"title": "Voti ordinati"}}
+
+    colori = ["#d62728" if v < 18 else "#2ca02c" for v in voti]
+
+    fig = go.Figure(data=[go.Bar(
+        x=list(range(1, len(voti) + 1)),
+        y=voti.tolist(),
+        marker=dict(color=colori)
+    )])
+
+    fig.update_layout(
+        title=f"Voti ordinati - Appello {appello_id}",
+        xaxis_title="Posizione in classifica",
+        yaxis_title="Voto"
+    )
+    return fig.to_dict()
+
+#esiti per genere (10)
+def grafico_esiti_per_genere(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+
+    categorie = ["promosso", "bocciato", "assente", "ritirato"]
+    etichette = {"promosso": "Promossi", "bocciato": "Bocciati", "assente": "Assenti", "ritirato": "Ritirati"}
+
+    fig = go.Figure()
+    for genere in ["M", "F", "?"]:
+        sotto = df[df["Genere"] == genere]
+        if sotto.empty:
+            continue
+        conteggi = sotto["tipo"].value_counts()
+        fig.add_trace(go.Bar(
+            name=genere,
+            x=[etichette[c] for c in categorie],
+            y=[int(conteggi.get(c, 0)) for c in categorie]
+        ))
+
+    fig.update_layout(
+        barmode="group",
+        title=f"Esiti per genere - Appello {appello_id}",
+        xaxis_title="Esito",
+        yaxis_title="Numero studenti"
+    )
+    return fig.to_dict()
+
+#gauge tasso di superamento (11)
+def grafico_gauge_superamento(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+
+    totale = len(df)
+    promossi = int((df["tipo"] == "promosso").sum())
+    tasso = round(promossi / totale * 100, 1) if totale else 0
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=tasso,
+        number={"suffix": "%"},
+        title={"text": f"Tasso di superamento - Appello {appello_id}"},
+        gauge={
+            "axis": {"range": [0, 100]},
+            "bar": {"color": "#2ca02c"},
+            "steps": [
+                {"range": [0, 40], "color": "#f8d7da"},
+                {"range": [40, 70], "color": "#fff3cd"},
+                {"range": [70, 100], "color": "#d4edda"}
+            ]
+        }
+    ))
+    return fig.to_dict()
+
+#media voto per genere (12)
+def grafico_media_per_genere(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    df["voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
+
+    df_media = df.groupby("Genere")["voto_num"].mean().round(2).dropna()
+
+    fig = go.Figure(data=[go.Bar(
+        x=df_media.index.tolist(),
+        y=df_media.values.tolist(),
+        text=[f"{v:.2f}" for v in df_media.values],
+        textposition="auto",
+        marker=dict(color="#9467bd")
+    )])
+
+    fig.update_layout(
+        title=f"Voto medio per genere - Appello {appello_id}",
+        xaxis_title="Genere",
+        yaxis_title="Voto medio"
+    )
+    return fig.to_dict()
+
+#distribuzione voti per anno di frequenza (13)
+def grafico_voti_per_anno_freq(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    if "anno_freq" not in df.columns:
+        return {"data": [], "layout": {"title": "Dato Anno Freq. non disponibile"}}
+
+    df["voto_num"] = pd.to_numeric(df["voto"], errors="coerce")
+    df = df.dropna(subset=["anno_freq"])
+
+    fig = go.Figure()
+    for anno in sorted(df["anno_freq"].dropna().unique()):
+        sotto = df[df["anno_freq"] == anno]["voto_num"].dropna()
+        if sotto.empty:
+            continue
+        fig.add_trace(go.Box(y=sotto.tolist(), name=str(anno)))
+
+    fig.update_layout(
+        title=f"Distribuzione voti per anno di frequenza - Appello {appello_id}",
+        xaxis_title="Anno di frequenza",
+        yaxis_title="Voto"
+    )
+    return fig.to_dict()
+
+#tasso di superamento per anno di frequenza (14)
+def grafico_tasso_per_anno_freq(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    if "anno_freq" not in df.columns:
+        return {"data": [], "layout": {"title": "Dato Anno Freq. non disponibile"}}
+
+    df["tipo"] = df["tipo"].astype(str).str.lower().str.strip()
+    df = df.dropna(subset=["anno_freq"])
+
+    righe = []
+    for anno in sorted(df["anno_freq"].dropna().unique()):
+        sotto = df[df["anno_freq"] == anno]
+        totale = len(sotto)
+        promossi = (sotto["tipo"] == "promosso").sum()
+        righe.append((str(anno), round(promossi / totale * 100, 1) if totale else 0))
+
+    if not righe:
+        return {"data": [], "layout": {"title": "Dato Anno Freq. non disponibile"}}
+
+    anni, tassi = zip(*righe)
+
+    fig = go.Figure(data=[go.Bar(
+        x=list(anni),
+        y=list(tassi),
+        text=[f"{t}%" for t in tassi],
+        textposition="auto",
+        marker=dict(color="#17becf")
+    )])
+
+    fig.update_layout(
+        title=f"Tasso di superamento per anno di frequenza - Appello {appello_id}",
+        xaxis_title="Anno di frequenza",
+        yaxis_title="% Promossi",
+        yaxis=dict(range=[0, 100])
+    )
+    return fig.to_dict()
+
+#presenza vs distanza (15)
+def grafico_presenza_distanza(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    if "svolgimento" not in df.columns:
+        return {"data": [], "layout": {"title": "Dato Svolgimento Esame non disponibile"}}
+
+    mappa = {"P": "Presenza", "D": "Distanza"}
+    conteggi = df["svolgimento"].map(mappa).value_counts()
+
+    if conteggi.empty:
+        return {"data": [], "layout": {"title": "Dato Svolgimento Esame non disponibile"}}
+
+    fig = go.Figure(data=[go.Bar(
+        x=conteggi.index.tolist(),
+        y=conteggi.values.tolist(),
+        marker=dict(color="#8c564b")
+    )])
+
+    fig.update_layout(
+        title=f"Presenza vs Distanza - Appello {appello_id}",
+        xaxis_title="Modalità",
+        yaxis_title="Numero studenti"
+    )
+    return fig.to_dict()
+
+#distribuzione a fasce di voto (16)
+def grafico_fasce_voto(df, appello_id):
+    df = df[df["appello_id"] == appello_id].copy()
+    voti = pd.to_numeric(df["voto"], errors="coerce").dropna()
+
+    if voti.empty:
+        return {"data": [], "layout": {"title": "Distribuzione a fasce di voto"}}
+
+    def fascia(v):
+        if v < 18:
+            return "Insufficiente"
+        elif v <= 22:
+            return "18-22"
+        elif v <= 26:
+            return "23-26"
+        elif v <= 29:
+            return "27-29"
+        else:
+            return "30-30L"
+
+    ordine = ["Insufficiente", "18-22", "23-26", "27-29", "30-30L"]
+    conteggi = voti.apply(fascia).value_counts().reindex(ordine, fill_value=0)
+
+    fig = go.Figure(data=[go.Bar(
+        x=conteggi.index.tolist(),
+        y=conteggi.values.tolist(),
+        marker=dict(color=["#d62728", "#ff7f0e", "#ffbb33", "#8bc34a", "#2ca02c"])
+    )])
+
+    fig.update_layout(
+        title=f"Distribuzione a fasce di voto - Appello {appello_id}",
+        xaxis_title="Fascia",
+        yaxis_title="Numero studenti"
+    )
+    return fig.to_dict()
 
 
 #statistiche miste(0)
@@ -754,7 +721,10 @@ def grafico_statistiche_radar(df, appello_id):
         theta=categorie,
         fill='toself',
         name=f"Appello {appello_id}",
-        line_color="orange"
+        line_color="orange",
+        text=[f"{v:.2f}" for v in valori],
+        mode="lines+markers+text",
+        textposition="top center"
     ))
 
     fig.update_layout(
@@ -822,7 +792,7 @@ def heatmap_voti(df):
 
     fig.update_traces(
         xgap=0, ygap=0,
-        text=z_vals,
+        text=[[int(v) if v else "" for v in row] for row in z_vals],
         texttemplate="%{text}",
         textfont=dict(size=10, color="black")
     )
@@ -870,7 +840,7 @@ def grafico_ratio_esiti(df):
     df_pivot = (
         df_count.pivot(index="appello_id", columns="Esito", values="Ratio")
         .reindex(columns=categorie)
-        .fillna(0)   # 🔥 fondamentale: niente NaN
+        .fillna(0)   # niente NaN
     )
 
     fig = go.Figure()
@@ -879,16 +849,20 @@ def grafico_ratio_esiti(df):
     for appello in df_pivot.index:
         valori = df_pivot.loc[appello].tolist()
 
-        # 🔥 chiusura del poligono
-        valori.append(valori[0])
+        # chiusura del poligono
+        valori_chiusi = valori + [valori[0]]
         categorie_chiuse = categorie + [categorie[0]]
+        etichette = [f"{v*100:.0f}%" for v in valori_chiusi]
 
         fig.add_trace(go.Scatterpolar(
-            r=valori,
+            r=valori_chiusi,
             theta=categorie_chiuse,
             fill='toself',
             name=str(appello),
-            opacity=0.6
+            opacity=0.6,
+            text=etichette,
+            mode="lines+markers+text",
+            textposition="top center"
         ))
 
     fig.update_layout(
@@ -896,7 +870,8 @@ def grafico_ratio_esiti(df):
         polar=dict(
             radialaxis=dict(
                 visible=True,
-                range=[0, 1]
+                range=[0, 1],
+                tickformat=".0%"
             )
         ),
         showlegend=True,
@@ -904,14 +879,6 @@ def grafico_ratio_esiti(df):
     )
 
     return fig.to_dict()
-
-
-
-
-
-
-
-
 
 
 #PREVISIONI GLOBALI
@@ -987,8 +954,15 @@ def grafico_previsione(df):
     # Numero previsioni future = numero appelli storici
     n_future = n_appelli
 
-    # 🔥 PREVISIONE ITERATIVA
+    # errore storico del modello, usato per costruire la banda di confidenza
+    model_base = LinearRegression().fit(X, y)
+    residui = y - model_base.predict(X)
+    errore_std = float(np.std(residui)) if len(residui) > 1 else 0.0
+
+    # PREVISIONE ITERATIVA
     future_pred = []
+    future_upper = []
+    future_lower = []
     future_dates = []
 
     current_X = X.copy()
@@ -1013,6 +987,11 @@ def grafico_previsione(df):
 
         # Limiti realistici
         next_pred = float(np.clip(next_pred, 18, 31))
+
+        # la banda si allarga man mano che ci si allontana nel futuro
+        margine = errore_std * (1 + i * 0.3)
+        future_upper.append(float(np.clip(next_pred + margine, 0, 31)))
+        future_lower.append(float(np.clip(next_pred - margine, 0, 31)))
 
         # Salva
         future_pred.append(next_pred)
@@ -1044,6 +1023,17 @@ def grafico_previsione(df):
             "mode": "lines+markers",
             "marker": {"color": "red"},
             "name": "Previsioni"
+        },
+        {
+            "x": previsioni_x + previsioni_x[::-1],
+            "y": future_upper + future_lower[::-1],
+            "type": "scatter",
+            "fill": "toself",
+            "fillcolor": "rgba(255,0,0,0.12)",
+            "line": {"width": 0},
+            "hoverinfo": "skip",
+            "name": "Intervallo previsione",
+            "showlegend": True
         }
     ]
 
@@ -1067,7 +1057,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 # ============================
-#  MODELLO ENSEMBLE
+#  MODELLO ENSEMBLE (ISCRITTI)
 # ============================
 
 def mean_model(y):
@@ -1081,7 +1071,7 @@ def regression_model(x, y):
 def last_value_model(y):
     return y[-1]
 
-def get_weights(n):
+def get_weights_iscritti(n):
     if n <= 3:
         return 0.5, 0.2, 0.3   # media, regressione, ultimo valore
     elif n <= 10:
@@ -1097,7 +1087,7 @@ def ensemble_predict(y):
     r = regression_model(x, y)
     l = last_value_model(y)
 
-    w_m, w_r, w_l = get_weights(n)
+    w_m, w_r, w_l = get_weights_iscritti(n)
 
     prediction = (w_m * m) + (w_r * r) + (w_l * l)
     return prediction
@@ -1175,30 +1165,6 @@ def grafico_previsioni_iscritti(df, n_future=5):
     )
 
     return fig.to_dict()
-
-#previsione tipologia esiti futuri
-# def grafico_esiti_appello(df, appello_id):
-#     df = df[df["appello_id"] == appello_id].copy()
-
-#     serie = df["voto"]
-#     voti_num = pd.to_numeric(serie, errors="coerce")
-
-#     assenti = (serie == "ASS").sum()
-#     ritirati = (serie == "RIT").sum()
-#     promossi = (voti_num >= 18).sum()
-#     bocciati = (voti_num < 18).sum()
-
-#     return {
-#         "data": [{
-#             "x": ["Promossi", "Bocciati", "Ritirati", "Assenti"],
-#             "y": [promossi, bocciati, ritirati, assenti],
-#             "type": "bar",
-#             "marker": {"color": "orange"}
-#         }],
-#         "layout": {
-#             "title": "Esiti appello"
-#         }
-#     }
 
 def estrai_storico_esiti(df):
     gruppi = df.groupby("appello_id")
@@ -1328,7 +1294,7 @@ def predict_outcomes(
     }
 
 def grafico_previsione_esiti_futuri(df, n_future=5):
-    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
     print("\n=== PREVISIONE ESITI FUTURI (CONFRONTO STORICO + FUTURO) ===")
     print(df.head(20))
@@ -1405,26 +1371,29 @@ def grafico_previsione_esiti_futuri(df, n_future=5):
     print("Ritirati futuri:", fut_rit)
 
     # ============================================================
-    # 5) GRAFICO STACKED BAR (STORICO + FUTURO)
+    # 5) GRAFICO SMALL-MULTIPLE: STORICO E FUTURO AFFIANCATI
     # ============================================================
-    fig = go.Figure()
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Storico", "Previsto"),
+        shared_yaxes=True
+    )
 
-    # --- STORICO ---
-    fig.add_trace(go.Bar(name="Promossi (storico)", x=date_storiche, y=storico_prom, marker=dict(color="green")))
-    fig.add_trace(go.Bar(name="Bocciati (storico)", x=date_storiche, y=storico_bocc, marker=dict(color="red")))
-    fig.add_trace(go.Bar(name="Assenti (storico)",  x=date_storiche, y=storico_ass,  marker=dict(color="gray")))
-    fig.add_trace(go.Bar(name="Ritirati (storico)", x=date_storiche, y=storico_rit,  marker=dict(color="orange")))
+    colori = {"Promossi": "green", "Bocciati": "red", "Assenti": "gray", "Ritirati": "orange"}
 
-    # --- FUTURO ---
-    fig.add_trace(go.Bar(name="Promossi (previsti)", x=future_dates, y=fut_prom, marker=dict(color="lightgreen"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Bocciati (previsti)", x=future_dates, y=fut_bocc, marker=dict(color="lightcoral"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Assenti (previsti)",  x=future_dates, y=fut_ass,  marker=dict(color="lightgray"), opacity=0.6))
-    fig.add_trace(go.Bar(name="Ritirati (previsti)", x=future_dates, y=fut_rit,  marker=dict(color="moccasin"), opacity=0.6))
+    fig.add_trace(go.Bar(name="Promossi", x=date_storiche, y=storico_prom, marker=dict(color=colori["Promossi"]), legendgroup="Promossi"), row=1, col=1)
+    fig.add_trace(go.Bar(name="Bocciati", x=date_storiche, y=storico_bocc, marker=dict(color=colori["Bocciati"]), legendgroup="Bocciati"), row=1, col=1)
+    fig.add_trace(go.Bar(name="Assenti",  x=date_storiche, y=storico_ass,  marker=dict(color=colori["Assenti"]),  legendgroup="Assenti"),  row=1, col=1)
+    fig.add_trace(go.Bar(name="Ritirati", x=date_storiche, y=storico_rit,  marker=dict(color=colori["Ritirati"]), legendgroup="Ritirati"), row=1, col=1)
+
+    fig.add_trace(go.Bar(name="Promossi", x=future_dates, y=fut_prom, marker=dict(color=colori["Promossi"]), legendgroup="Promossi", showlegend=False), row=1, col=2)
+    fig.add_trace(go.Bar(name="Bocciati", x=future_dates, y=fut_bocc, marker=dict(color=colori["Bocciati"]), legendgroup="Bocciati", showlegend=False), row=1, col=2)
+    fig.add_trace(go.Bar(name="Assenti",  x=future_dates, y=fut_ass,  marker=dict(color=colori["Assenti"]),  legendgroup="Assenti",  showlegend=False), row=1, col=2)
+    fig.add_trace(go.Bar(name="Ritirati", x=future_dates, y=fut_rit,  marker=dict(color=colori["Ritirati"]), legendgroup="Ritirati", showlegend=False), row=1, col=2)
 
     fig.update_layout(
         barmode="stack",
         title="Confronto esiti: storico vs futuro previsto",
-        xaxis_title="Appelli",
         yaxis_title="Numero studenti",
         height=600
     )
@@ -1434,10 +1403,10 @@ def grafico_previsione_esiti_futuri(df, n_future=5):
 #Previsione delle medie
 
 #1.componenti
-def mean_model(medie):
+def mean_model_medie(medie):
     return np.mean(medie)
 
-def last_value_model(medie):
+def last_value_model_medie(medie):
     return medie[-1]
 
 def regression_model_medie(promossi, iscritti, medie):
@@ -1458,7 +1427,7 @@ def predict_regression(coeffs, prom_prev, iscritti_prev):
     return a + b * p
 
 #2.pesi adattivi
-def get_weights(n):
+def get_weights_medie(n):
     if n <= 5:
         return 0.5, 0.2, 0.3   # media, regressione, last
     elif n <= 20:
@@ -1466,75 +1435,6 @@ def get_weights(n):
     else:
         return 0.2, 0.7, 0.1
 
-# #3. modello completo: ensamable di media storica + regressione + ultimo valore
-# def predict_exam_mean(
-#     promossi,
-#     iscritti,
-#     medie,
-#     prom_prev,
-#     iscritti_prev
-# ):
-#     """
-#     Predice la media futura combinando:
-#     - media storica
-#     - regressione su pass_rate
-#     - ultimo valore
-#     """
-
-#     n = len(medie)
-
-#     # --- componenti ---
-#     m = mean_model(medie)
-#     l = last_value_model(medie)
-
-#     coeffs = regression_model_medie(promossi, iscritti, medie)
-#     r = predict_regression(coeffs, prom_prev, iscritti_prev)
-
-#     # --- pesi ---
-#     w_m, w_r, w_l = get_weights(n)
-
-#     # --- ensemble ---
-#     prediction = (w_m * m) + (w_r * r) + (w_l * l)
-
-#     return {
-#         "media_predetta": prediction,
-#         "componenti": {
-#             "media_storica": m,
-#             "regressione": r,
-#             "ultimo_valore": l
-#         },
-#         "pesi": {
-#             "media": w_m,
-#             "regressione": w_r,
-#             "ultimo": w_l
-#         }
-#     }
-# def predict_exam_mean(prom, isc, med, prom_prev, iscritti_prev):
-#     import numpy as np
-
-#     # 1) media mobile degli ultimi 3 valori (se ci sono)
-#     if len(med) >= 3:
-#         ma3 = np.mean(med[-3:])
-#     else:
-#         ma3 = np.mean(med)
-
-#     # 2) regressione lineare su tutta la serie
-#     X = np.arange(len(med))
-#     Y = np.array(med)
-#     if len(med) >= 2:
-#         coeffs = np.polyfit(X, Y, 1)
-#         trend_pred = coeffs[0] * len(med) + coeffs[1]
-#     else:
-#         trend_pred = med[-1]
-
-#     # 3) peso del rapporto promossi/iscritti
-#     ratio = prom_prev / iscritti_prev if iscritti_prev > 0 else 1
-#     ratio_adj = 18 + (ratio * 12)  # 18–30
-
-#     # 4) combinazione dei modelli
-#     pred = (ma3 * 0.4) + (trend_pred * 0.4) + (ratio_adj * 0.2)
-
-#     return {"media_predetta": pred}
 def predict_exam_mean(prom, isc, med, prom_prev, iscritti_prev):
     import numpy as np
 
@@ -1592,7 +1492,7 @@ def forecast_exam_means(promossi, iscritti, medie, n_finale):
     med = medie.copy()
     print("\n=== PREVISIONE ITERATIVA MEDIE D'ESAME ===")
     print("Promossi storici:", prom)
-    print("Iscritti storici:", isc) 
+    print("Iscritti storici:", isc)
     print("Medie storiche:", med)
 
     while len(med) < n_finale:

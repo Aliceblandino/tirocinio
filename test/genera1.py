@@ -1,8 +1,11 @@
+import random
+
 import pandas as pd
 import random
 from faker import Faker
 
 fake = Faker('it_IT')
+num_studenti = random.randint(1, 250)  # Numero casuale di studenti tra 15 e 25
 
 # --------------------------
 # Intestazioni generali
@@ -17,7 +20,7 @@ intestazioni = [
     "Tipo di Prova: Orale",
     "Prenotazione (dal-al): 21/08/2025 - 21/09/2025",
     "Date Appello: 23/09/2025 - 09:00:00 - Nessun partizionamento - Esame orale - Rizzi - Aula A023 (ex aula 47)",
-    "Totale Studenti iscritti: 19",
+    f"Totale Studenti iscritti: {num_studenti}",
     "",
     "Tipo Esito: Voto in trentesimi (31 = 30L, ASS = Assente, 0 = Insufficiente, RIT = Ritirato)",
     "Tipo Svolgimento Esame: P = Esame in Presenza, D = Esame a Distanza",
@@ -27,7 +30,7 @@ intestazioni = [
 # --------------------------
 # Creo DataFrame studenti
 # --------------------------
-num_studenti = 19
+
 studenti = pd.DataFrame({
     "#": range(1, num_studenti + 1),
     "Matricola": [None]*num_studenti,
@@ -66,7 +69,7 @@ for i in range(num_studenti):
 # --------------------------
 # Scrivo file Excel con formattazione
 # --------------------------
-with pd.ExcelWriter("Appello_Completo_Formattato.xlsx", engine="xlsxwriter") as writer:
+with pd.ExcelWriter("Appello_generato.xlsx", engine="xlsxwriter") as writer:
     workbook  = writer.book
     worksheet = workbook.add_worksheet("Appello")
 
@@ -96,4 +99,4 @@ with pd.ExcelWriter("Appello_Completo_Formattato.xlsx", engine="xlsxwriter") as 
         max_len = max(studenti[col].astype(str).map(len).max(), len(col)) + 2
         worksheet.set_column(i, i, max_len)
 
-print("File 'Appello_Completo_Formattato.xlsx' creato con intestazioni e formattazione!")
+print("File 'Appello_generato.xlsx' creato con intestazioni e formattazione!")

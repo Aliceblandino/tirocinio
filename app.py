@@ -199,13 +199,20 @@ def carica_tutti_i_voti():
             else:
                 tipo = "altro"
 
+            anno_freq = df.iloc[i]["Anno Freq."] if "Anno Freq." in df.columns else None
+            cfu = df.iloc[i]["CFU"] if "CFU" in df.columns else None
+            svolgimento = df.iloc[i]["Svolgimento Esame"] if "Svolgimento Esame" in df.columns else None
+
             tutti_voti.append({
                 "voto": voto_num,
                 "tipo": tipo,
                 "appello_id": a["id"],
                 "materia": a["header"]["attivita"],
                 "nome_raw": nome_raw,
-                "data_appello": a["header"]["data_appello"]
+                "data_appello": a["header"]["data_appello"],
+                "anno_freq": anno_freq,
+                "cfu": cfu,
+                "svolgimento": svolgimento
             })
 
     df_all = pd.DataFrame(tutti_voti)
@@ -342,6 +349,8 @@ def statistiche_globali_ajax():
         results["cumulativa"] = grafico_distribuzione_cumulativa(df)
         results["ratio"] = grafico_ratio_esiti(df)
         results["heatmap"] = heatmap_voti(df) #???
+        results["tasso"] = grafico_tasso_superamento(df)
+        results["kpi"] = kpi_riepilogo(df)
     else:
         print("NON genero voti")
         print("NON genero boxplot")
@@ -412,7 +421,9 @@ def statistiche_globali():
     graph_piscritti=None
     graph_previsioneesiti=None
     graph_pmedie=None
-    
+    graph_tasso=None
+    kpi=None
+
 
     # --- SE CI SONO APPELLI CARICATI ---
     if appelli:
@@ -436,6 +447,8 @@ def statistiche_globali():
                 graph_cumulativa = grafico_distribuzione_cumulativa(df)
                 graph_heatmap = heatmap_voti(df) #non so se esite
                 graph_media_globale = grafico_media_globale(df)
+                graph_tasso = grafico_tasso_superamento(df)
+                kpi = kpi_riepilogo(df)
 
             if "affluenza" in selected_stats:
                 graph_ratio= grafico_ratio_esiti(df)
@@ -470,8 +483,9 @@ def statistiche_globali():
         graph_ratio=graph_ratio,
         graph_piscritti=graph_piscritti,
         graph_previsioneesiti=graph_previsioneesiti,
-        graph_pmedie=graph_pmedie
-        
+        graph_pmedie=graph_pmedie,
+        graph_tasso=graph_tasso,
+        kpi=kpi
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------
@@ -563,24 +577,45 @@ def dettaglio_appello(appello_id):
 
     grafico_distribuzione = grafico_distribuzione_appello(df, appello_id)
     grafico_boxplot = grafico_boxplot_appello(df, appello_id)
-    grafico_media = grafico_media_appello(df, appello_id)
     grafico_genere = grafico_genere_uno(df, appello_id)
     grafico_esiti=grafico_esiti_appello(df, appello_id)
     grafico_radar=grafico_statistiche_radar(df, appello_id)
-    
+
+    grafico_donut = grafico_esiti_donut(df, appello_id)
+    grafico_ecdf = grafico_ecdf_voti(df, appello_id)
+    grafico_ranking = grafico_voti_ordinati(df, appello_id)
+    grafico_esiti_genere = grafico_esiti_per_genere(df, appello_id)
+    grafico_gauge = grafico_gauge_superamento(df, appello_id)
+    grafico_media_genere = grafico_media_per_genere(df, appello_id)
+    grafico_anno_freq = grafico_voti_per_anno_freq(df, appello_id)
+    grafico_tasso_anno_freq = grafico_tasso_per_anno_freq(df, appello_id)
+    grafico_presenza = grafico_presenza_distanza(df, appello_id)
+    grafico_fasce = grafico_fasce_voto(df, appello_id)
+
     stats = statistiche_appello(df, appello_id)
+    kpi = kpi_appello(df, appello_id)
 
     return render_template(
         "dettaglio_appello.html",
         appello={"header": header},
         grafico_distribuzione=grafico_distribuzione,
         grafico_boxplot=grafico_boxplot,
-        grafico_media=grafico_media,
         grafico_genere=grafico_genere,
         grafico_esiti=grafico_esiti,
         grafico_radar=grafico_radar,
-       
-        stats=stats
+        grafico_donut=grafico_donut,
+        grafico_ecdf=grafico_ecdf,
+        grafico_ranking=grafico_ranking,
+        grafico_esiti_genere=grafico_esiti_genere,
+        grafico_gauge=grafico_gauge,
+        grafico_media_genere=grafico_media_genere,
+        grafico_anno_freq=grafico_anno_freq,
+        grafico_tasso_anno_freq=grafico_tasso_anno_freq,
+        grafico_presenza=grafico_presenza,
+        grafico_fasce=grafico_fasce,
+
+        stats=stats,
+        kpi=kpi
     )
 
 if __name__ == "__main__":

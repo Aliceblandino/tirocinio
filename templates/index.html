@@ -17,14 +17,41 @@
         align-items: center;
         justify-content: center;
         color: #fff;
-        background-color: #212529;
+        background: radial-gradient(circle at top, #3730a3 0%, #1e1b4b 55%, #14121f 100%);
         text-align: center;
+        font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+        animation: cover-fade-in 0.5s ease both;
+      }
+      @keyframes cover-fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
       .cover-container {
         max-width: 42em;
       }
       form input {
         margin-bottom: 10px;
+        transition: box-shadow 0.2s ease;
+      }
+      form input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.35);
+      }
+      .nav-masthead .nav-link {
+        transition: opacity 0.15s ease, transform 0.15s ease;
+      }
+      .nav-masthead .nav-link:hover {
+        opacity: 1;
+        transform: translateY(-1px);
+      }
+      .btn-login {
+        background: #fff;
+        color: #3730a3;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        color: #3730a3;
       }
     </style>
   </head>
@@ -33,10 +60,9 @@
     <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
       <header class="mb-auto">
         <div>
-          <h3 class="float-md-start mb-0">Dashboard UniSUd</h3>
+          <h3 class="float-md-start mb-0">uni(S)UD</h3>
           <nav class="nav nav-masthead justify-content-center float-md-end">
             <a class="nav-link fw-bold py-1 px-0 active" href="/">Home</a>
-            <a class="nav-link fw-bold py-1 px-0" href="/upload">Upload</a>
             <a class="nav-link fw-bold py-1 px-0" href="/dashboard">Dashboard</a>
           </nav>
         </div>
@@ -76,14 +102,14 @@
             <label for="password">Password</label>
           </div>
 
-          <button class="btn btn-lg btn-light fw-bold border-white bg-white" type="submit">
+          <button class="btn btn-lg btn-login fw-bold border-white" type="submit">
             Accedi
           </button>
         </form>
       </main>
 
       <footer class="mt-auto text-white-50">
-        <p>Template “Cover” adattato per Flask – Bootstrap 5.3</p>
+        <p>Dashboard Statistiche Esami</p>
       </footer>
     </div>
 

@@ -9,29 +9,21 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
-    <!-- <style>
-        .media-box {
-            width: 48px;
-            height: 48px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #fff;
-            font-size: 18px;
-        }
-        .tag-menu label {
-            margin-right: 12px;
-            cursor: pointer;
-        }
-    </style> -->
 </head>
 <body>
 
-<div class="container d-flex justify-content-center mt-5">
-    <div class="card p-4 shadow-sm" style="max-width: 100%; width: 100%;">
+<nav class="navbar navbar-expand app-navbar mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('dashboard') }}">uni(S)UD</a>
+        <div class="nav">
+            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container d-flex justify-content-center mt-2">
+    <div id="card-dettaglio" class="card p-4 shadow-sm fade-slide-in" style="max-width: 100%; width: 100%;">
 
         <!-- TITOLO -->
         <h4 class="mb-3 text-center">{{ appello.header.attivita }}</h4>
@@ -65,13 +57,27 @@
     <div class="card p-3">
         <h6 class="mb-2">Seleziona cosa visualizzare</h6>
         <div class="tag-menu">
+            <span class="filter-group-title">Voti</span>
             <label><input type="checkbox" class="grafico-toggle" value="distribuzione" checked> Distribuzione voti</label>
             <label><input type="checkbox" class="grafico-toggle" value="boxplot" checked> Boxplot</label>
-            <label><input type="checkbox" class="grafico-toggle" value="media" checked> Media</label>
-            <label><input type="checkbox" class="grafico-toggle" value="genere" checked> Genere</label>
+            <label><input type="checkbox" class="grafico-toggle" value="ecdf" checked> Cumulata voti</label>
+            <label><input type="checkbox" class="grafico-toggle" value="ranking" checked> Voti ordinati</label>
+            <label><input type="checkbox" class="grafico-toggle" value="fasce" checked> Fasce di voto</label>
+            <label><input type="checkbox" class="grafico-toggle" value="radar" checked> Statistiche Radar</label>
+
+            <span class="filter-group-title">Esiti</span>
             <label><input type="checkbox" class="grafico-toggle" value="esiti" checked> Esiti</label>
-           <label><input type="checkbox" class="grafico-toggle" value="radar" checked> Statistiche Radar</label> 
-          
+            <label><input type="checkbox" class="grafico-toggle" value="donut" checked> Esiti (donut)</label>
+            <label><input type="checkbox" class="grafico-toggle" value="gauge" checked> Gauge superamento</label>
+
+            <span class="filter-group-title">Affluenza</span>
+            <label><input type="checkbox" class="grafico-toggle" value="genere" checked> Genere</label>
+            <label><input type="checkbox" class="grafico-toggle" value="esiti-genere" checked> Esiti per genere</label>
+            <label><input type="checkbox" class="grafico-toggle" value="media-genere" checked> Media per genere</label>
+            <label><input type="checkbox" class="grafico-toggle" value="anno-freq" checked> Voti per anno freq.</label>
+            <label><input type="checkbox" class="grafico-toggle" value="tasso-anno-freq" checked> Superamento per anno freq.</label>
+            <label><input type="checkbox" class="grafico-toggle" value="presenza" checked> Presenza/Distanza</label>
+        </div>
     </div>
 </div>
 
@@ -79,7 +85,7 @@
 <div class="container mt-4">
     <div class="row text-center">
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>📊 Difficoltà</h6>
                 <p class="stat-value">{{ stats.difficoltà }}%</p>
@@ -87,14 +93,14 @@
         </div>
 
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>🔔 Mediana</h6>
                 <p class="stat-value">{{ stats.mediana }}</p>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>⭐ Moda</h6>
                 <p class="stat-value">{{ stats.moda }}</p>
@@ -105,24 +111,49 @@
 
     <div class="row text-center mt-3">
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>📉 Minimo</h6>
                 <p class="stat-value">{{ stats.minimo }}</p>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>📈 Massimo</h6>
                 <p class="stat-value">{{ stats.massimo }}</p>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-4 stagger-item">
             <div class="stat-card shadow-sm p-3">
                 <h6>📐 Dev.Std</h6>
                 <p class="stat-value">{{ stats.deviazione_std }}</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row text-center mt-3">
+
+        <div class="col-md-6 stagger-item">
+            <div class="stat-card shadow-sm p-3">
+                <h6>✅ Tasso superamento</h6>
+                <p class="stat-value">{{ kpi.tasso_superamento }}{% if kpi.tasso_superamento is not none %}%{% endif %}</p>
+            </div>
+        </div>
+
+        <div class="col-md-6 stagger-item">
+            <div class="stat-card shadow-sm p-3">
+                <h6>⚖️ Voto medio vs storico corso</h6>
+                <p class="stat-value">
+                    {{ kpi.media_voto }}
+                    {% if kpi.delta_vs_storico is not none %}
+                        <small class="{{ 'text-success' if kpi.delta_vs_storico >= 0 else 'text-danger' }}">
+                            ({{ '+' if kpi.delta_vs_storico >= 0 else '' }}{{ kpi.delta_vs_storico }} vs {{ kpi.media_storica_corso }})
+                        </small>
+                    {% endif %}
+                </p>
             </div>
         </div>
 
@@ -131,38 +162,79 @@
 <div class="container mt-4">
     <div class="row">
 
-        <div class="col-md-6 grafico-wrapper" data-grafico="distribuzione">
+        <div class="col-md-6 grafico-wrapper stagger-item" data-grafico="distribuzione">
             <h5>Distribuzione voti</h5>
             <div id="grafico-distribuzione"></div>
         </div>
 
-        <div class="col-md-6 grafico-wrapper" data-grafico="boxplot">
+        <div class="col-md-6 grafico-wrapper stagger-item" data-grafico="boxplot">
             <h5>Boxplot</h5>
             <div id="grafico-boxplot"></div>
         </div>
 
-        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="media">
-            <h5>Media</h5>
-            <div id="grafico-media"></div>
-        </div>
-
-        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="genere">
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="genere">
             <h5>Genere</h5>
             <div id="grafico-genere"></div>
         </div>
         
-        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="esiti">
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="esiti">
             <h5>Esiti</h5>
             <div id="grafico-esiti"></div>
         </div>
-        <div class="col-md-6 mt-4 grafico-wrapper" data-grafico="radar">
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="radar">
             <h5>Statistiche Radar</h5>
             <div id="grafico-radar"></div>
         </div>
 
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="donut">
+            <h5>Esiti (donut)</h5>
+            <div id="grafico-donut"></div>
+        </div>
 
-        
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="ecdf">
+            <h5>Cumulata voti</h5>
+            <div id="grafico-ecdf"></div>
+        </div>
 
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="ranking">
+            <h5>Voti ordinati</h5>
+            <div id="grafico-ranking"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="esiti-genere">
+            <h5>Esiti per genere</h5>
+            <div id="grafico-esiti-genere"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="gauge">
+            <h5>Gauge superamento</h5>
+            <div id="grafico-gauge"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="media-genere">
+            <h5>Media per genere</h5>
+            <div id="grafico-media-genere"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="anno-freq">
+            <h5>Voti per anno di frequenza</h5>
+            <div id="grafico-anno-freq"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="tasso-anno-freq">
+            <h5>Superamento per anno di frequenza</h5>
+            <div id="grafico-tasso-anno-freq"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="presenza">
+            <h5>Presenza/Distanza</h5>
+            <div id="grafico-presenza"></div>
+        </div>
+
+        <div class="col-md-6 mt-4 grafico-wrapper stagger-item" data-grafico="fasce">
+            <h5>Fasce di voto</h5>
+            <div id="grafico-fasce"></div>
+        </div>
 
     </div>
 </div>
@@ -175,8 +247,7 @@
     const graficoBoxplot = {{ grafico_boxplot | tojson }};
     Plotly.newPlot('grafico-boxplot', graficoBoxplot.data, graficoBoxplot.layout);
 
-    const graficoMedia = {{ grafico_media | tojson }};
-    Plotly.newPlot('grafico-media', graficoMedia.data, graficoMedia.layout);
+    const kpi = {{ kpi | tojson }};
 
     const graficoGenere = JSON.parse({{ grafico_genere | tojson }});
     Plotly.newPlot('grafico-genere', graficoGenere.data, graficoGenere.layout);
@@ -187,44 +258,58 @@
     const graficoRadar = JSON.parse({{ grafico_radar | tojson }});
     Plotly.newPlot('grafico-radar', graficoRadar.data, graficoRadar.layout);
 
+    const graficoDonut = {{ grafico_donut | tojson }};
+    Plotly.newPlot('grafico-donut', graficoDonut.data, graficoDonut.layout);
 
+    const graficoEcdf = {{ grafico_ecdf | tojson }};
+    Plotly.newPlot('grafico-ecdf', graficoEcdf.data, graficoEcdf.layout);
 
-    
+    const graficoRanking = {{ grafico_ranking | tojson }};
+    Plotly.newPlot('grafico-ranking', graficoRanking.data, graficoRanking.layout);
+
+    const graficoEsitiGenere = {{ grafico_esiti_genere | tojson }};
+    Plotly.newPlot('grafico-esiti-genere', graficoEsitiGenere.data, graficoEsitiGenere.layout);
+
+    const graficoGauge = {{ grafico_gauge | tojson }};
+    Plotly.newPlot('grafico-gauge', graficoGauge.data, graficoGauge.layout);
+
+    const graficoMediaGenere = {{ grafico_media_genere | tojson }};
+    Plotly.newPlot('grafico-media-genere', graficoMediaGenere.data, graficoMediaGenere.layout);
+
+    const graficoAnnoFreq = {{ grafico_anno_freq | tojson }};
+    Plotly.newPlot('grafico-anno-freq', graficoAnnoFreq.data, graficoAnnoFreq.layout);
+
+    const graficoTassoAnnoFreq = {{ grafico_tasso_anno_freq | tojson }};
+    Plotly.newPlot('grafico-tasso-anno-freq', graficoTassoAnnoFreq.data, graficoTassoAnnoFreq.layout);
+
+    const graficoPresenza = {{ grafico_presenza | tojson }};
+    Plotly.newPlot('grafico-presenza', graficoPresenza.data, graficoPresenza.layout);
+
+    const graficoFasce = {{ grafico_fasce | tojson }};
+    Plotly.newPlot('grafico-fasce', graficoFasce.data, graficoFasce.layout);
 
     // -------------------------
     // QUADRATINO MEDIA INTESTAZIONE
     // -------------------------
 function setMediaBoxFromGrafico() {
     const box = document.getElementById("media-box");
+    const media = kpi.media_voto;
 
-    try {
-        const ys = graficoMedia.data[0].y || [];
-
-        if (!ys.length) {
-            box.innerHTML = `
-                <span class="media-label">Media</span>
-                <span class="media-value">-</span>
-            `;
-            box.style.background = "#6c757d";
-            return;
-        }
-
-        const media = ys.reduce((a, b) => a + b, 0) / ys.length;
-
-        box.innerHTML = `
-            <span class="media-label">Media</span>
-            <span class="media-value">${media.toFixed(1)}</span>
-        `;
-
-        box.style.background = media >= 18 ? "#28a745" : "#dc3545";
-
-    } catch (e) {
+    if (media === null || media === undefined) {
         box.innerHTML = `
             <span class="media-label">Media</span>
             <span class="media-value">-</span>
         `;
         box.style.background = "#6c757d";
+        return;
     }
+
+    box.innerHTML = `
+        <span class="media-label">Media</span>
+        <span class="media-value">${media.toFixed(1)}</span>
+    `;
+
+    box.style.background = media >= 18 ? "#28a745" : "#dc3545";
 }
 
     setMediaBoxFromGrafico();

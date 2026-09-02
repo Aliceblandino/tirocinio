@@ -16,7 +16,18 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-<div class="container mt-4">
+
+<nav class="navbar navbar-expand app-navbar mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('dashboard') }}">uni(S)UD</a>
+        <div class="nav">
+            <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-2">
     <h2 class="mb-4">Dashboard Statistiche Esami</h2>
 
     <div class="row g-4">
@@ -26,7 +37,7 @@
 
             {% if session.appelli %}
                 {% for appello in session.appelli %}
-                    <div class="card mb-3 shadow-sm">
+                    <div class="card mb-3 shadow-sm stagger-item">
                         <div class="card-body">
 
                             <div class="card-header-custom mb-2 d-flex justify-content-between align-items-center">
@@ -80,10 +91,10 @@
                     {% if graph_box or graph_media_globale or graph_esiti or graph_distribuzione_voti %}
 
                         <div class="grid-4-grafici">
-                            <div class="plot-box"><div id="g0"></div></div>
-                            <div class="plot-box"><div id="g2"></div></div>
-                            <div class="plot-box"><div id="g3"></div></div>
-                            <div class="plot-box"><div id="g4"></div></div>
+                            <div class="plot-box stagger-item"><div id="g0"></div></div>
+                            <div class="plot-box stagger-item"><div id="g2"></div></div>
+                            <div class="plot-box stagger-item"><div id="g3"></div></div>
+                            <div class="plot-box stagger-item"><div id="g4"></div></div>
                         </div>
 
                         <script>

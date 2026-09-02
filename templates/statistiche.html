@@ -27,34 +27,29 @@
 </head>
 
 <body>
-<div class="container mt-4">
+
+<nav class="navbar navbar-expand app-navbar mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('dashboard') }}">uni(S)UD</a>
+        <div class="nav">
+            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link active" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-2">
 
     <h2 class="mb-4">Statistiche globali degli appelli</h2>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-4">← Torna alla dashboard</a>
 
     <!-- FILTRI -->
     <div class="card p-3 mb-4 shadow-sm">
         <h5 class="mb-3">Statistiche</h5>
 
-        <div class="row">
-            <div class="col-md-6">
-
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input tema-check" type="checkbox" id="chk-voti" name="stats" value="voti" checked>
-                    <label class="form-check-label" for="chk-voti">Voti</label>
-                </div>
-
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input tema-check" type="checkbox" id="chk-affluenza" name="stats" value="affluenza" checked>
-                    <label class="form-check-label" for="chk-affluenza">Affluenza</label>
-                </div>
-
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input tema-check" type="checkbox" id="chk-previsioni" name="stats" value="previsioni" checked>
-                    <label class="form-check-label" for="chk-previsioni">Previsioni</label>
-                </div>
-
-            </div>
+        <div class="tag-menu mb-2">
+            <label><input class="tema-check" type="checkbox" id="chk-voti" name="stats" value="voti" checked> Voti</label>
+            <label><input class="tema-check" type="checkbox" id="chk-affluenza" name="stats" value="affluenza" checked> Affluenza</label>
+            <label><input class="tema-check" type="checkbox" id="chk-previsioni" name="stats" value="previsioni" checked> Previsioni</label>
         </div>
 
         <h5 class="mt-4">Appelli</h5>
@@ -75,6 +70,34 @@
  <!-- MESSAGGIO SE NESSUN APPELLO -->
 <div id="no-appelli" class="alert alert-warning mt-3" style="display:none;">Nessun appello selezionato. Seleziona almeno un appello per visualizzare le statistiche.</div>
 
+<!-- KPI RIEPILOGO -->
+<div id="kpi-panel" class="row g-3 mt-2 mb-2" data-theme="voti">
+    <div class="col-6 col-md-3 stagger-item">
+        <div class="card text-center p-3 shadow-sm h-100">
+            <div class="text-muted small">Iscritti totali</div>
+            <div id="kpi-iscritti" class="fs-3 fw-bold">–</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 stagger-item">
+        <div class="card text-center p-3 shadow-sm h-100">
+            <div class="text-muted small">Tasso superamento</div>
+            <div id="kpi-superamento" class="fs-3 fw-bold">–</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 stagger-item">
+        <div class="card text-center p-3 shadow-sm h-100">
+            <div class="text-muted small">Voto medio (promossi)</div>
+            <div id="kpi-media" class="fs-3 fw-bold">–</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 stagger-item">
+        <div class="card text-center p-3 shadow-sm h-100">
+            <div class="text-muted small">Tasso assenza</div>
+            <div id="kpi-assenza" class="fs-3 fw-bold">–</div>
+        </div>
+    </div>
+</div>
+
 <!-- GRAFICI-->
 <div class="container mb-5">
     <h5 class="mt-4">Tutti i grafici</h5>
@@ -82,57 +105,61 @@
     <div class="row g-4 mt-3">
 
         <!-- ===== GRUPPO: VOTI ===== -->
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-dvoti" class="grafico" data-theme="voti"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-boxplot" class="grafico" data-theme="voti"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-esiti" class="grafico" data-theme="voti"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-cumulativa" class="grafico" data-theme="voti"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-heatmap" class="grafico" data-theme="voti"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-media" class="grafico" data-theme="voti"></div>
         </div>
 
+        <div class="col-md-6 stagger-item">
+            <div id="g-tasso" class="grafico" data-theme="voti"></div>
+        </div>
+
         <!-- ===== GRUPPO: AFFLUENZA ===== -->
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-ratio" class="grafico" data-theme="affluenza"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-genere" class="grafico" data-theme="affluenza"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-ripetizioni" class="grafico" data-theme="affluenza"></div>
         </div>
 
         <!-- ===== GRUPPO: PREVISIONI ===== -->
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-previsioni" class="grafico" data-theme="previsioni"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-piscritti" class="grafico" data-theme="previsioni"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-previsioneesiti" class="grafico" data-theme="previsioni"></div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 stagger-item">
             <div id="g-pmedie" class="grafico" data-theme="previsioni"></div>
         </div>
 
@@ -221,8 +248,11 @@ function aggiornaGrafici() {
             "ratio": "g-ratio",
             "previsioneiscritti": "g-piscritti",
             "previsioneesiti": "g-previsioneesiti",
-            "previsionemedie": "g-pmedie"
+            "previsionemedie": "g-pmedie",
+            "tasso": "g-tasso"
         };
+
+        aggiornaKpi(data.kpi);
 
     for (const key in mapping) {
     const divId = mapping[key];
@@ -244,6 +274,21 @@ function aggiornaGrafici() {
 
         aggiornaVisibilitaTemi();
     });
+}
+
+// Aggiorna il pannello KPI in alto
+function aggiornaKpi(kpi) {
+    if (!kpi) {
+        document.getElementById("kpi-iscritti").textContent = "–";
+        document.getElementById("kpi-superamento").textContent = "–";
+        document.getElementById("kpi-media").textContent = "–";
+        document.getElementById("kpi-assenza").textContent = "–";
+        return;
+    }
+    document.getElementById("kpi-iscritti").textContent = kpi.totale_iscritti ?? "–";
+    document.getElementById("kpi-superamento").textContent = kpi.tasso_superamento != null ? kpi.tasso_superamento + "%" : "–";
+    document.getElementById("kpi-media").textContent = kpi.voto_medio != null ? kpi.voto_medio : "–";
+    document.getElementById("kpi-assenza").textContent = kpi.tasso_assenza != null ? kpi.tasso_assenza + "%" : "–";
 }
 
 // Mostra/nasconde grafici
