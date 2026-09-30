@@ -19,12 +19,12 @@
 
 <nav class="navbar navbar-expand app-navbar mb-4">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('dashboard') }}">uni(S)UD</a>
+        <a class="navbar-brand" href="{{ url_for('dashboard.dashboard') }}">uni(S)UD</a>
         <div class="nav">
-            <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a class="nav-link" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
+            <a class="nav-link active" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('statistiche.statistiche_globali') }}">Statistiche globali</a>
         </div>
-        <form method="POST" action="{{ url_for('logout') }}" class="d-flex align-items-center gap-2 mb-0">
+        <form method="POST" action="{{ url_for('login.logout') }}" class="d-flex align-items-center gap-2 mb-0">
             <span class="text-white-50 small">{{ current_user.id }}</span>
             <button type="submit" class="nav-link btn btn-link">Esci</button>
         </form>
@@ -52,13 +52,13 @@
                             <p id="data-appello-{{ loop.index }}"><b>Data appello:</b> {{ appello.header.data_appello }}</p>
                             <p id="tipo-prova-{{ loop.index }}"><b>Tipo di prova:</b> {{ appello.header.tipo_prova }}</p>
                             <p id="totale-iscritti-{{ loop.index }}"><b>Iscritti:</b> {{ appello.header.totale_iscritti }}</p>
-                            <a href="{{ url_for('grafici_appello', appello_id=appello.id) }}"
+                            <a href="{{ url_for('appelli.grafici_appello', appello_id=appello.id) }}"
                             class="btn btn-primary w-100 btn-grafico"
-                            data-href="{{ url_for('dettaglio_appello', appello_id=appello.id) }}">
+                            data-href="{{ url_for('appelli.dettaglio_appello', appello_id=appello.id) }}">
                             Visualizza grafico voti
                             </a>
                             <form id="form-delete-{{ appello.id }}"
-                                action="{{ url_for('delete_appello', appello_id=appello.id) }}"
+                                action="{{ url_for('appelli.delete_appello', appello_id=appello.id) }}"
                                 method="POST"
                                 style="display:none;">
                             </form>
@@ -72,13 +72,13 @@
             {% endif %}
 
             <!-- UPLOAD -->
-            <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" class="mt-3">
+            <form action="{{ url_for('appelli.upload') }}" method="POST" enctype="multipart/form-data" class="mt-3">
                 <input type="file" name="files" class="form-control mb-2" multiple required>
                 <button type="submit" class="btn btn-success w-100">Carica appello</button>
             </form>
 
             <!-- CLEAR -->
-            <form action="{{ url_for('clear_appelli') }}" method="POST" class="mt-2">
+            <form action="{{ url_for('appelli.clear_appelli') }}" method="POST" class="mt-2">
                 <button type="submit" class="btn btn-danger w-100">Cancella tutti gli appelli</button>
             </form>
 
@@ -112,7 +112,7 @@
                     {% endif %}
 
                     <div id="view-more-wrapper">
-    <a href="{{ url_for('statistiche_globali') }}" id="btn-view-more-floating">View more</a>
+    <a href="{{ url_for('statistiche.statistiche_globali') }}" id="btn-view-more-floating">View more</a>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </div>
 

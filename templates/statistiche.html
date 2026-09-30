@@ -30,12 +30,12 @@
 
 <nav class="navbar navbar-expand app-navbar mb-4">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('dashboard') }}">uni(S)UD</a>
+        <a class="navbar-brand" href="{{ url_for('dashboard.dashboard') }}">uni(S)UD</a>
         <div class="nav">
-            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a class="nav-link active" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
+            <a class="nav-link" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
+            <a class="nav-link active" href="{{ url_for('statistiche.statistiche_globali') }}">Statistiche globali</a>
         </div>
-        <form method="POST" action="{{ url_for('logout') }}" class="d-flex align-items-center gap-2 mb-0">
+        <form method="POST" action="{{ url_for('login.logout') }}" class="d-flex align-items-center gap-2 mb-0">
             <span class="text-white-50 small">{{ current_user.id }}</span>
             <button type="submit" class="nav-link btn btn-link">Esci</button>
         </form>
@@ -169,7 +169,7 @@
 
     </div>
 
-    <a href="{{ url_for('dashboard') }}"
+    <a href="{{ url_for('dashboard.dashboard') }}"
        class="btn btn-secondary w-100 mb-4 mt-4">
        Torna alla dashboard
     </a>
