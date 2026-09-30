@@ -73,7 +73,12 @@
         <p class="lead">Effettua il login per accedere alla dashboard</p>
 
         <!-- 🔹 FORM DI LOGIN -->
-        <form method="POST" action="/">
+        <form method="POST">
+          {% with messages = get_flashed_messages() %}
+            {% for m in messages %}
+            <div class="alert alert-info py-2">{{ m }}</div>
+            {% endfor %}
+          {% endwith %}
           {% if error %}
           <div class="alert alert-danger py-2">{{ error }}</div>
           {% endif %}
@@ -84,10 +89,11 @@
               class="form-control"
               id="email"
               name="email"
-              placeholder="Email"
+              placeholder="Utente"
+              autocomplete="username"
               required
             >
-            <label for="email">Email</label>
+            <label for="email">Utente</label>
           </div>
 
           <div class="form-floating mb-3">
@@ -101,6 +107,12 @@
             >
             <label for="password">Password</label>
           </div>
+
+          <div class="form-check d-inline-block mb-3">
+            <input class="form-check-input" type="checkbox" id="remember" name="remember">
+            <label class="form-check-label" for="remember">Ricordami</label>
+          </div>
+          <br>
 
           <button class="btn btn-lg btn-login fw-bold border-white" type="submit">
             Accedi

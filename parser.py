@@ -78,7 +78,10 @@ def parse_appello(filepath):
         "tipo_prova": None,
         "prenotazione": None,
         "data_appello": None,
-        "totale_iscritti": None
+        "totale_iscritti": None,
+        "anno_accademico": None,
+        "docenti": [],
+        "aula": None
     }
 
     meta = {}
@@ -96,11 +99,31 @@ def parse_appello(filepath):
     # Tipo di prova (D12 → riga indice 11, **prima colonna**)
     header["tipo_prova"] = df0.iloc[11, 3] if pd.notna(df0.iloc[11, 3]) else None
 
+    # Corsi di laurea (E7, E8, ... → righe 6-7, colonna 4), es. "NOME CORSO [819]"
+    header["corsi_studio"] = []
+    for r in range(6, 9):
+        cella = df0.iloc[r, 4] if df0.shape[1] > 4 else None
+        m = re.match(r"(.*)\[(\d+)\]", str(cella)) if pd.notna(cella) else None
+        if m:
+            header["corsi_studio"].append({"codice": int(m.group(2)), "nome": m.group(1).strip()})
+
+    # Sessione (D10 → riga indice 9), es. "SESSIONE UNICA A.A. 2024/2025 [...]"
+    header["sessione"] = df0.iloc[9, 3] if pd.notna(df0.iloc[9, 3]) else None
+    m = re.search(r"A\.A\. (\d{4})/\d{4}", str(header["sessione"]))
+    header["anno_accademico"] = int(m.group(1)) if m else None
+
     # Data appello (D14 → riga indice 13, **prima colonna**)
+    # formato: "23/09/2025 - 09:00:00 - Nessun partizionamento - Esame orale - Rizzi - Aula A023"
     data_str = df0.iloc[13, 3] if pd.notna(df0.iloc[13, 3]) else None
+    header["docenti"] = []
+    header["aula"] = None
     if data_str:
         m = re.search(r"\d{2}/\d{2}/\d{4}", str(data_str))
         header["data_appello"] = m.group(0) if m else data_str
+        parti = [p.strip() for p in str(data_str).split(" - ")]
+        if len(parti) >= 6:
+            header["aula"] = parti[-1]
+            header["docenti"] = [d.strip() for d in re.split(r"[,/]", parti[-2]) if d.strip()]
 
     # Totale studenti iscritti (D15 → riga indice 14, **prima colonna**)
     tot_str = df0.iloc[14, 3] if pd.notna(df0.iloc[14, 3]) else None

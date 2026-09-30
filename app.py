@@ -1,17 +1,49 @@
 # app.py
 import os
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from parser import parse_appello
+from flask import Flask, render_template, request, redirect, url_for, flash
+from models import db, Appello, Esito, Studente, CorsoDiStudio
+from importa import importa_appello
 from grafici import *  # importa tutte le funzioni dai grafici
 import re
 from genderize import Genderize #problema richieste limitate
 import gender_guesser.detector as gender
 from werkzeug.utils import secure_filename
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+import click
+from auth import get_user, crea_utente, crea_utente_default
 
 
 app = Flask(__name__)
-app.secret_key = "supersecret"
+app.secret_key = os.environ.get("SECRET_KEY", "supersecret")
+
+# ---------------- DATABASE ----------------
+# file SQLite nella cartella del progetto (apribile con DBeaver)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "esami.db")
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+
+# ---------------- LOGIN ----------------
+login_manager = LoginManager(app)
+login_manager.login_view = "index"  # dove mandare chi non è loggato
+login_manager.login_message = "Effettua il login per accedere a questa pagina"
+
+crea_utente_default()
+
+@login_manager.user_loader
+def load_user(user_id):
+    # Flask-Login salva in sessione solo l'id: qui lo ritrasformiamo in un User
+    return get_user(user_id)
+
+@app.cli.command("crea-utente")
+@click.argument("username")
+@click.password_option()
+def crea_utente_command(username, password):
+    """Crea (o aggiorna) un utente: flask --app app crea-utente <username>"""
+    crea_utente(username, password)
+    print(f"Utente '{username}' salvato")
 
 # ---------------- CONFIG ----------------
 UPLOAD_FOLDER = "uploads"
@@ -27,83 +59,64 @@ def allowed_file(filename):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
     if request.method == "POST":
-        if request.form.get("email") == "spes" and request.form.get("password") == "spes":
-            return redirect(url_for("dashboard"))
+        user = get_user(request.form.get("email", "").strip())
+        if user and user.check_password(request.form.get("password", "")):
+            login_user(user, remember="remember" in request.form)
+            next_page = request.args.get("next")
+            # accetta solo percorsi interni, per evitare redirect verso altri siti
+            if not next_page or not next_page.startswith("/") or next_page.startswith("//"):
+                next_page = url_for("dashboard")
+            return redirect(next_page)
         return render_template("index.html", error="Credenziali errate")
     return render_template("index.html")
 
 
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    logout_user()
+    flash("Logout effettuato")
+    return redirect(url_for("index"))
+
+
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload():
     files = request.files.getlist("files")
     if not files:
         return "Nessun file caricato", 400
 
-    if "appelli" not in session:
-        session["appelli"] = []
-
     for file in files:
-        if file.filename == "":
+        if file.filename == "" or not allowed_file(file.filename):
             continue
 
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(file.filename))
         file.save(filepath)
 
         try:
-            appello = parse_appello(filepath)
+            importa_appello(filepath)
         except Exception as e:
-            print("Errore parsing:", e)
-            continue
-
-        session["appelli"].append({
-            "filename": file.filename,
-            "filepath": filepath,
-            "id": appello["id"],
-            "header": appello["header"],
-            "meta": appello["meta"]
-        })
-
-    # ORDINAMENTO QUI, DOPO AVER AGGIUNTO TUTTI GLI APPELLI
-    try:
-        session["appelli"].sort(
-            key=lambda a: pd.to_datetime(a["header"]["data_appello"], dayfirst=True)
-        )
-    except Exception as e:
-        print("Errore ordinamento appelli:", e)
-
-    # salva ultimo come corrente
-    if session["appelli"]:
-        session["appello_corrente"] = session["appelli"][-1]
+            db.session.rollback()
+            print("Errore importazione:", e)
+            flash(f"Impossibile importare {file.filename}")
+        finally:
+            # i dati ora sono nel database, il file non serve più
+            os.remove(filepath)
 
     return redirect(url_for("dashboard"))
 
 @app.route("/clear_appelli", methods=["POST"])
+@login_required
 def clear_appelli():
-    # svuota cartella upload
-    for f in os.listdir(app.config["UPLOAD_FOLDER"]):
-        os.remove(os.path.join(app.config["UPLOAD_FOLDER"], f))
-    session.clear()
+    Esito.query.delete()
+    Appello.query.delete()
+    db.session.commit()
     flash("Appelli rimossi")
     return redirect(url_for("dashboard"))
-
-@app.route("/grafici")
-def grafici():
-    appello = session.get("appello_corrente")
-    if not appello:
-        flash("Nessun appello caricato")
-        return redirect(url_for("dashboard"))
-
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
-    appello_parsed = parse_appello(filepath)
-    df1 = appello_parsed["df1"]
-
-    if "Esito" not in df1.columns:
-        flash("Il file non contiene la colonna 'Esito'. Impossibile generare grafico.")
-        return redirect(url_for("dashboard"))
-
-    graphJSON = grafico_distribuzione_voti(df1)
-    return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
 
 # ---------------- FUNZIONI AUSILIARIE ----------------
 def normalize_name(nome):
@@ -130,95 +143,62 @@ def guess_gender(nome):
     # 'andy' (androgino) e 'unknown' → non determinabile
     return "?"
 
+def appello_to_dict(a):
+    # stessa struttura usata prima dalla sessione, così i template non cambiano
+    return {
+        "id": str(a.id),
+        "etichetta": a.etichetta,
+        "header": {
+            "attivita": f"{a.corso.nome} [{a.corso.codice}]",
+            "data_appello": a.data.strftime("%d/%m/%Y"),
+            "tipo_prova": a.tipo_prova,
+            "totale_iscritti": a.totale_iscritti,
+            "aula": a.aula,
+        },
+    }
+
+def lista_appelli():
+    appelli = Appello.query.order_by(Appello.data).all()
+    return [appello_to_dict(a) for a in appelli]
+
+def _query_esiti(selected_appelli=None):
+    query = Esito.query.join(Appello)
+    if selected_appelli is not None:
+        ids = [int(a) for a in selected_appelli]
+        query = query.filter(Appello.id.in_(ids))
+    return query.order_by(Appello.data).all()
+
 def carica_ripetizioni(selected_appelli=None):
-    appelli = session.get("appelli", [])
-    rows = []
+    rows = [
+        {"matricola": e.id_studente, "appello_id": e.appello.etichetta}
+        for e in _query_esiti(selected_appelli)
+    ]
+    return pd.DataFrame(rows, columns=["matricola", "appello_id"])
 
-    for a in appelli:
-        if selected_appelli and str(a["id"]) not in selected_appelli:
-            continue
-
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], a["filename"])
-        parsed = parse_appello(filepath)
-        df = parsed["df1"]
-
-        df.columns = df.columns.str.strip()
-
-        if "Matricola" not in df.columns:
-            continue
-
-        for m in df["Matricola"]:
-            rows.append({
-                "matricola": m,
-                "appello_id": str(a["id"])
-            })
-    return pd.DataFrame(rows)
-
-    
-
-def carica_tutti_i_voti():
-    appelli = session.get("appelli", [])
+def carica_tutti_i_voti(selected_appelli=None):
     tutti_voti = []
+    for e in _query_esiti(selected_appelli):
+        a = e.appello
+        tutti_voti.append({
+            "voto": e.voto,
+            "tipo": e.stato,
+            "appello_id": a.etichetta,
+            "materia": f"{a.corso.nome} [{a.corso.codice}]",
+            "nome_raw": e.studente.nome,
+            "data_appello": a.data.strftime("%d/%m/%Y"),
+            "anno_freq": e.anno_freq,
+            "cfu": e.cfu,
+            "svolgimento": e.svolgimento
+        })
 
-    for a in appelli:
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], a["filename"])
-        parsed = parse_appello(filepath)
-        df = parsed["df1"]
-
-        if "Esito" not in df.columns:
-            continue
-
-        # prova a prendere il nome (adatta il nome colonna se diverso)
-        col_nome = None
-        for c in df.columns:
-            if str(c).strip().lower() in ["nome", "studente", "cognome e nome"]:
-                col_nome = c
-                break
-
-        if col_nome is None:
-            df["__NOME__"] = ""
-            col_nome = "__NOME__"
-
-        serie = df["Esito"].astype(str).str.strip()
-        serie = serie.replace("30L", 31)
-        voti_num = pd.to_numeric(serie, errors="coerce")
-
-        for i, val in enumerate(serie):
-            val_str = str(val).strip().upper()
-            voto_num = voti_num.iloc[i]
-            nome_raw = df.iloc[i][col_nome]
-
-            if val_str == "ASS":
-                tipo = "assente"
-            elif val_str == "RIT":
-                tipo = "ritirato"
-            elif pd.notna(voto_num) and voto_num == 0:
-                tipo = "bocciato"
-            elif pd.notna(voto_num) and voto_num >= 18:
-                tipo = "promosso"
-            else:
-                tipo = "altro"
-
-            anno_freq = df.iloc[i]["Anno Freq."] if "Anno Freq." in df.columns else None
-            cfu = df.iloc[i]["CFU"] if "CFU" in df.columns else None
-            svolgimento = df.iloc[i]["Svolgimento Esame"] if "Svolgimento Esame" in df.columns else None
-
-            tutti_voti.append({
-                "voto": voto_num,
-                "tipo": tipo,
-                "appello_id": a["id"],
-                "materia": a["header"]["attivita"],
-                "nome_raw": nome_raw,
-                "data_appello": a["header"]["data_appello"],
-                "anno_freq": anno_freq,
-                "cfu": cfu,
-                "svolgimento": svolgimento
-            })
-
-    df_all = pd.DataFrame(tutti_voti)
+    colonne = ["voto", "tipo", "appello_id", "materia", "nome_raw", "data_appello",
+               "anno_freq", "cfu", "svolgimento"]
+    df_all = pd.DataFrame(tutti_voti, columns=colonne)
 
     if df_all.empty:
         return df_all
+
+    df_all["voto"] = pd.to_numeric(df_all["voto"], errors="coerce")
 
     #genre
     # normalizza nome
@@ -226,14 +206,14 @@ def carica_tutti_i_voti():
     # gender-guesser
     df_all["Genere"] = df_all["Nome_norm"].apply(guess_gender)
 
-
     return df_all
 
 # ---------------- DASHBOARD E STATISTICHE ----------------
 #----------------- DASHBOARD ----------------
 @app.route("/dashboard")
+@login_required
 def dashboard():
-    appelli = session.get("appelli", [])
+    appelli = lista_appelli()
    # graph_media = None
     graph_box = None
     #graph_media_solo = None
@@ -280,6 +260,7 @@ def dashboard():
     )
 # ---------------- STATISTICHE GLOBALI ----------------
 @app.route("/statistiche_globali_ajax", methods=["POST"])
+@login_required
 def statistiche_globali_ajax():
     print("\n===== AJAX DEBUG =====")
     print("POST JSON:", request.json)
@@ -292,10 +273,7 @@ def statistiche_globali_ajax():
 
     selected_appelli = [str(a) for a in selected_appelli]
 
-    appelli = session.get("appelli", [])
-    df = carica_tutti_i_voti()
-    df["appello_id"] = df["appello_id"].astype(str)
-    df = df[df["appello_id"].isin(selected_appelli)]
+    df = carica_tutti_i_voti(selected_appelli)
 
     print("DF filtrato appelli:", df["appello_id"].unique())
     print("DF rows:", len(df))
@@ -394,8 +372,9 @@ def statistiche_globali_ajax():
     return results
 
 @app.route("/statistiche_globali", methods=["GET", "POST"])
+@login_required
 def statistiche_globali():
-    appelli = session.get("appelli", [])
+    appelli = lista_appelli()
 
     # --- DEFAULT ---
     selected_stats = [ "voti", "affluenza", "previsioni"]
@@ -428,14 +407,8 @@ def statistiche_globali():
     # --- SE CI SONO APPELLI CARICATI ---
     if appelli:
 
-        # CARICO TUTTI I VOTI
-        df = carica_tutti_i_voti()
-
-        # NORMALIZZO TUTTO A STRINGA
-        df["appello_id"] = df["appello_id"].astype(str)
-
-        # FILTRO GLI APPELLI SELEZIONATI
-        df = df[df["appello_id"].isin(selected_appelli)]
+        # CARICO I VOTI DEGLI APPELLI SELEZIONATI
+        df = carica_tutti_i_voti(selected_appelli)
 
         # SE IL DF NON È VUOTO, GENERO SOLO I GRAFICI SELEZIONATI
         if not df.empty:
@@ -489,91 +462,38 @@ def statistiche_globali():
     )
 
 # ---------------- GRAFICI PER APPELLO ----------------
-@app.route("/grafici/appello/<appello_id>")
+@app.route("/grafici/appello/<int:appello_id>")
+@login_required
 def grafici_appello(appello_id):
-    appelli = session.get("appelli", [])
-    appello = next((a for a in appelli if a["id"] == appello_id), None)
-    
+    # il template grafici.html non esiste più: il dettaglio contiene tutti i grafici
+    return redirect(url_for("dettaglio_appello", appello_id=appello_id))
+
+# ---------------- ELIMINAZIONE APPELLO ----------------
+@app.route("/delete_appello/<int:appello_id>", methods=["POST"])
+@login_required
+def delete_appello(appello_id):
+    appello = db.session.get(Appello, appello_id)
     if not appello:
         flash("Appello non trovato")
         return redirect(url_for("dashboard"))
 
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], appello["filename"])
-    parsed = parse_appello(filepath)
-    df1 = parsed["df1"]
-    print("COLONNE DF APPPELLO:", df1.columns.tolist())
-    if "Esito" not in df1.columns:
-        flash("Il file non contiene la colonna 'Esito'.")
-        return redirect(url_for("dashboard"))
-
-    graphJSON = grafico_distribuzione_voti(df1)
-
-    return render_template("grafici.html", graphJSON=graphJSON, header=appello["header"])
-
-# ---------------- ELIMINAZIONE APPELLO ----------------
-@app.route("/delete_appello/<appello_id>", methods=["POST"])
-def delete_appello(appello_id):
-    print("DEBUG delete_appello: appello_id URL =", appello_id)
-
-    appelli = session.get("appelli", [])
-    print("DEBUG prima, appelli in sessione:", appelli)
-
-    # trova l'appello da eliminare (confronto sempre come stringa)
-    appello_da_eliminare = next(
-        (a for a in appelli if str(a.get("id")) == str(appello_id)),
-        None
-    )
-
-    if not appello_da_eliminare:
-        print("DEBUG: appello non trovato in sessione")
-        flash("Appello non trovato")
-        return redirect(url_for("dashboard"))
-
-    # elimina file fisico se esiste
-    filepath = appello_da_eliminare.get("filepath")
-    print("DEBUG: filepath da eliminare:", filepath)
-
-    if filepath and os.path.exists(filepath):
-        try:
-            os.remove(filepath)
-            print("DEBUG: file eliminato")
-        except Exception as e:
-            print("Errore eliminazione file:", e)
-
-    # ricostruisci lista appelli senza quello eliminato
-    appelli_filtrati = [a for a in appelli if str(a.get("id")) != str(appello_id)]
-    print("DEBUG dopo, appelli filtrati:", appelli_filtrati)
-
-    session["appelli"] = appelli_filtrati
-    session.modified = True  # forza il salvataggio della sessione
-
-    # aggiorna appello corrente
-    if appelli_filtrati:
-        session["appello_corrente"] = appelli_filtrati[-1]
-    else:
-        session.pop("appello_corrente", None)
-
+    db.session.delete(appello)  # gli esiti vengono eliminati in cascata
+    db.session.commit()
     flash("Appello eliminato correttamente")
     return redirect(url_for("dashboard"))
 
-from flask import render_template, session, abort
-
 # ---------------- DETTAGLIO APPELLO ----------------
-@app.route("/appello/<appello_id>")
+@app.route("/appello/<int:appello_id>")
+@login_required
 def dettaglio_appello(appello_id):
+    appello = db.session.get(Appello, appello_id)
+    if not appello:
+        return "Appello non trovato", 404
+
     df = carica_tutti_i_voti()
-    df_appello = df[df["appello_id"] == appello_id]
-
-    if df_appello.empty:
-        return "Appello non trovato", 404
-
-    appelli = session.get("appelli", [])
-    appello_obj = next((a for a in appelli if a["id"] == appello_id), None)
-
-    if not appello_obj:
-        return "Appello non trovato", 404
-
-    header = appello_obj["header"] 
+    header = appello_to_dict(appello)["header"]
+    # nei grafici gli appelli sono identificati dall'etichetta (es. MA0682_23092025)
+    appello_id = appello.etichetta
 
     grafico_distribuzione = grafico_distribuzione_appello(df, appello_id)
     grafico_boxplot = grafico_boxplot_appello(df, appello_id)

@@ -24,6 +24,10 @@
             <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
             <a class="nav-link" href="{{ url_for('statistiche_globali') }}">Statistiche globali</a>
         </div>
+        <form method="POST" action="{{ url_for('logout') }}" class="d-flex align-items-center gap-2 mb-0">
+            <span class="text-white-50 small">{{ current_user.id }}</span>
+            <button type="submit" class="nav-link btn btn-link">Esci</button>
+        </form>
     </div>
 </nav>
 
@@ -35,8 +39,8 @@
         <!-- COLONNA APPPELLI -->
         <div class="col-lg-5 col-md-6" id="col-appelli">
 
-            {% if session.appelli %}
-                {% for appello in session.appelli %}
+            {% if appelli %}
+                {% for appello in appelli %}
                     <div class="card mb-3 shadow-sm stagger-item">
                         <div class="card-body">
 
